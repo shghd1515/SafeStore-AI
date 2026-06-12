@@ -1860,11 +1860,11 @@ function updateIndoor(d) {
   }
 
   // 백엔드가 health_score를 주면 그대로, 없으면 자체 계산
-  const score = (d.health_score != null)
-    ? Math.round(+d.health_score)
+const score = (d.health_score?.score != null)
+    ? Math.round(+d.health_score.score)
     : calcHealth({ inTemp: +t, inHumi: +h, inPM25: +p25, inPM10: +p10 });
-  renderHealth(score);
-}
+renderHealth(score);
+  }
 
 /* ============================================================
    2) 외부 환경 (백엔드 /outdoor-air + /weather-forecast)
