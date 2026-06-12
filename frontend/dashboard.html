@@ -1,0 +1,2146 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SafeStore AI · 무인매장 통합 안전·환경 관리</title>
+
+<!-- 외부 의존성 -->
+<link rel="preconnect" href="https://cdn.jsdelivr.net" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+/* ============================================================
+   디자인 토큰
+============================================================ */
+:root {
+  /* 다크 (기본) */
+  --bg-0: #0A1929;
+  --bg-1: #0F2440;
+  --bg-2: #142F52;
+  --surface: rgba(20, 40, 70, 0.55);
+  --surface-strong: rgba(20, 40, 70, 0.85);
+  --border: rgba(80, 140, 220, 0.18);
+  --border-strong: rgba(80, 140, 220, 0.35);
+
+  --text-0: #F4F8FF;
+  --text-1: #C9D6E8;
+  --text-2: #8A9BB5;
+  --text-3: #5B6E89;
+
+  --brand: #2B7FFF;
+  --brand-glow: rgba(43, 127, 255, 0.45);
+  --cyan: #3DD9D6;
+  --cyan-glow: rgba(61, 217, 214, 0.4);
+
+  --danger: #FF3B30;
+  --danger-bg: rgba(255, 59, 48, 0.12);
+  --warn: #FFB020;
+  --warn-bg: rgba(255, 176, 32, 0.12);
+  --good: #22C55E;
+  --good-bg: rgba(34, 197, 94, 0.12);
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
+  --shadow-card: 0 8px 32px rgba(0, 10, 30, 0.4), 0 0 0 1px rgba(80, 140, 220, 0.08);
+  --shadow-glow: 0 0 40px rgba(43, 127, 255, 0.25);
+
+  --font-display: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+[data-theme="light"] {
+  --bg-0: #F2F5FA;
+  --bg-1: #E6ECF5;
+  --bg-2: #DCE4F0;
+  --surface: rgba(255, 255, 255, 0.85);
+  --surface-strong: rgba(255, 255, 255, 0.98);
+  --border: rgba(43, 127, 255, 0.18);
+  --border-strong: rgba(43, 127, 255, 0.35);
+
+  --text-0: #0A1929;
+  --text-1: #1E3A5F;
+  --text-2: #4A6280;
+  --text-3: #7B8FAE;
+
+  --shadow-card: 0 8px 32px rgba(20, 50, 100, 0.08), 0 0 0 1px rgba(43, 127, 255, 0.06);
+}
+
+/* ============================================================
+   기본
+============================================================ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg-0);
+  color: var(--text-0);
+  overflow-x: hidden;
+  line-height: 1.5;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* 전체 페이지 배경: 무인카페 사진 (fixed로 모든 섹션에 깔림) */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url('assets/cafe_bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  /* 살짝 밝게 + 살짝 채도 낮춰서 다크 톤과 조화 */
+  filter: brightness(0.7) saturate(0.75) hue-rotate(-15deg);
+  pointer-events: none;
+  z-index: -2;
+}
+
+/* 어두운 마스크 + 색감 통일 (다크 블루 톤) */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    /* 다크 블루 마스크 (텍스트 가독성 확보) */
+    linear-gradient(
+      180deg,
+      rgba(10, 25, 41, 0.78) 0%,
+      rgba(10, 25, 41, 0.85) 50%,
+      rgba(10, 25, 41, 0.92) 100%
+    ),
+    /* 좌우 가장자리에 코발트블루 글로우 (디자인 액센트) */
+    radial-gradient(ellipse 800px 600px at 15% 10%, rgba(43, 127, 255, 0.15), transparent 60%),
+    radial-gradient(ellipse 600px 400px at 85% 90%, rgba(61, 217, 214, 0.1), transparent 60%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+[data-theme="light"] body::before {
+  filter: brightness(1.1) saturate(0.85);
+}
+[data-theme="light"] body::after {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(242, 245, 250, 0.88) 0%,
+      rgba(242, 245, 250, 0.92) 50%,
+      rgba(242, 245, 250, 0.96) 100%
+    ),
+    radial-gradient(ellipse 800px 600px at 15% 10%, rgba(43, 127, 255, 0.12), transparent 60%),
+    radial-gradient(ellipse 600px 400px at 85% 90%, rgba(61, 217, 214, 0.08), transparent 60%);
+}
+
+/* ============================================================
+   상단 네비
+============================================================ */
+.nav {
+  position: fixed; top: 0; left: 0; right: 0;
+  z-index: 100;
+  padding: 16px 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: rgba(10, 25, 41, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  transition: background 0.3s;
+}
+[data-theme="light"] .nav { background: rgba(242, 245, 250, 0.85); }
+
+.nav__brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; }
+.nav__brand-icon {
+  width: 32px; height: 32px;
+  background: linear-gradient(135deg, var(--brand), var(--cyan));
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow-glow);
+}
+.nav__brand-icon svg { width: 18px; height: 18px; color: white; }
+
+.nav__menu { display: flex; gap: 4px; }
+.nav__link {
+  color: var(--text-2);
+  text-decoration: none;
+  font-size: 14px; font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 8px;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.nav__link:hover { color: var(--text-0); background: var(--surface); }
+
+.nav__actions { display: flex; gap: 8px; align-items: center; }
+.icon-btn {
+  width: 38px; height: 38px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-1);
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.icon-btn:hover { border-color: var(--border-strong); color: var(--text-0); }
+.icon-btn svg { width: 18px; height: 18px; }
+
+
+
+/* ============================================================
+   HERO (메인 랜딩) - 무인카페 배경 + 코드로 재구성한 우측 요소
+   배경은 body::before가 전체 페이지에 깔고 있음
+============================================================ */
+.hero {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* hero__bg 비활성화 (body 배경 사용) — 추가 마스크만 제공 */
+.hero__bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  /* 헤로 섹션은 좌측을 더 어둡게 해서 텍스트 가독성 확보 */
+  background: linear-gradient(
+    90deg,
+    rgba(10, 25, 41, 0.5) 0%,
+    rgba(10, 25, 41, 0.2) 50%,
+    rgba(10, 25, 41, 0) 100%
+  );
+}
+
+[data-theme="light"] .hero__bg {
+  background: linear-gradient(
+    90deg,
+    rgba(242, 245, 250, 0.5) 0%,
+    rgba(242, 245, 250, 0.2) 50%,
+    rgba(242, 245, 250, 0) 100%
+  );
+}
+
+.hero__inner {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 60px;
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 110px 48px 60px;
+  min-height: 100vh;
+  align-items: center;
+}
+
+.hero__left { display: flex; flex-direction: column; }
+
+.hero__eyebrow {
+  font-size: 15px; font-weight: 700;
+  color: var(--text-1);
+  letter-spacing: 0.01em;
+  margin-bottom: 18px;
+  opacity: 0;
+  animation: fadeUp 0.7s ease 0.1s forwards;
+}
+
+.hero__title {
+  display: flex; align-items: center; gap: 18px;
+  margin-bottom: 24px;
+  opacity: 0;
+  animation: fadeUp 0.7s ease 0.25s forwards;
+}
+.hero__logo {
+  width: 68px; height: 68px; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--brand), var(--cyan));
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 50px rgba(43, 127, 255, 0.5);
+}
+.hero__logo svg { width: 38px; height: 38px; color: white; }
+
+.hero__wordmark {
+  font-size: clamp(48px, 6.5vw, 84px);
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #FFFFFF 0%, #C9D6E8 60%, var(--cyan) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 4px 30px rgba(43, 127, 255, 0.4);
+}
+[data-theme="light"] .hero__wordmark {
+  background: linear-gradient(135deg, #0A1929 0%, #1E3A5F 60%, var(--brand) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero__tagline {
+  font-size: clamp(20px, 2vw, 26px);
+  font-weight: 700;
+  color: var(--text-0);
+  margin-bottom: 16px;
+  letter-spacing: -0.01em;
+  opacity: 0;
+  animation: fadeUp 0.7s ease 0.4s forwards;
+}
+
+.hero__desc {
+  font-size: 16px;
+  color: var(--text-1);
+  margin-bottom: 32px;
+  line-height: 1.65;
+  opacity: 0;
+  animation: fadeUp 0.7s ease 0.55s forwards;
+}
+.hero__desc strong { color: var(--cyan); font-weight: 700; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 32px;
+  opacity: 0;
+  animation: fadeUp 0.7s ease 0.7s forwards;
+}
+.feature {
+  background: rgba(10, 25, 41, 0.75);
+  border: 1px solid rgba(80, 140, 220, 0.3);
+  border-radius: 12px;
+  padding: 16px 10px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transition: all 0.3s;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+}
+[data-theme="light"] .feature {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(43, 127, 255, 0.3);
+}
+.feature::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, transparent, var(--brand-glow));
+  opacity: 0; transition: opacity 0.3s;
+}
+.feature:hover {
+  transform: translateY(-4px);
+  border-color: var(--cyan);
+  box-shadow: 0 12px 40px rgba(43, 127, 255, 0.4);
+}
+.feature:hover::before { opacity: 0.2; }
+.feature__icon {
+  width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 8px;
+  position: relative; z-index: 1;
+}
+.feature__icon svg { width: 100%; height: 100%; }
+.feature__title {
+  font-size: 13px; font-weight: 800;
+  color: var(--text-0);
+  margin-bottom: 3px;
+  position: relative; z-index: 1;
+}
+.feature__desc {
+  font-size: 10.5px;
+  color: var(--text-2);
+  line-height: 1.4;
+  position: relative; z-index: 1;
+}
+
+.scroll-indicator {
+  display: inline-flex; align-items: center;
+  gap: 8px;
+  color: var(--text-1);
+  font-size: 13px; font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  padding: 10px 20px;
+  background: rgba(43, 127, 255, 0.15);
+  border: 1px solid var(--brand);
+  border-radius: 30px;
+  align-self: flex-start;
+  opacity: 0;
+  animation: fadeUp 0.7s ease 0.85s forwards;
+}
+.scroll-indicator:hover {
+  color: var(--cyan);
+  background: rgba(61, 217, 214, 0.15);
+  border-color: var(--cyan);
+}
+.scroll-indicator__arrow {
+  display: inline-block;
+  animation: bounce 2s infinite;
+}
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
+}
+
+/* 우측 영역 */
+.hero__right {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  align-items: center;
+  opacity: 0;
+  animation: fadeUp 0.7s ease 0.5s forwards;
+}
+
+.hero__visuals {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+  width: 100%;
+  max-width: 580px;
+}
+
+/* 빨간박스 - 다양한 이상행동 탐지 */
+.anomaly-panel {
+  flex: 1.5;
+  background: linear-gradient(135deg, rgba(80, 0, 10, 0.7), rgba(40, 0, 5, 0.85));
+  border: 2px solid #FF3B30;
+  border-radius: 14px;
+  padding: 18px 16px 16px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 8px 40px rgba(255, 59, 48, 0.3),
+              inset 0 0 30px rgba(255, 59, 48, 0.08);
+}
+.anomaly-panel__head {
+  display: flex; align-items: center; gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 59, 48, 0.4);
+  margin-bottom: 14px;
+}
+.anomaly-panel__siren {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+.anomaly-panel__siren::before {
+  content: '';
+  position: absolute;
+  width: 28px; height: 28px;
+  background: #FF3B30;
+  border-radius: 50%;
+  opacity: 0.4;
+  animation: siren-pulse 1.5s infinite;
+}
+@keyframes siren-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.3); opacity: 0.2; }
+}
+.anomaly-panel__siren svg {
+  position: relative;
+  width: 22px; height: 22px;
+  color: #FF3B30;
+  filter: drop-shadow(0 0 6px #FF3B30);
+}
+.anomaly-panel__title {
+  font-size: 16px; font-weight: 900;
+  color: #FFFFFF;
+  letter-spacing: -0.01em;
+}
+.anomaly-panel__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+}
+.anomaly-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 4px;
+  font-size: 13px; font-weight: 700;
+  color: #FFFFFF;
+}
+.anomaly-item__icon {
+  width: 18px; height: 18px;
+  color: #FF3B30;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 4px rgba(255, 59, 48, 0.6));
+}
+
+/* 핸드폰 mockup */
+.phone {
+  flex: 0 0 175px;
+  background: linear-gradient(135deg, #1a1a1a, #000);
+  border-radius: 26px;
+  padding: 8px;
+  border: 2px solid #333;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6),
+              inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  position: relative;
+}
+.phone::before {
+  content: '';
+  position: absolute;
+  top: 10px; left: 50%;
+  transform: translateX(-50%);
+  width: 60px; height: 5px;
+  background: #000;
+  border-radius: 5px;
+  z-index: 3;
+}
+.phone__screen {
+  background: #0A1929;
+  border-radius: 18px;
+  padding: 18px 12px 12px;
+  display: flex; flex-direction: column;
+  gap: 6px;
+  min-height: 280px;
+}
+.phone__status {
+  display: flex; justify-content: space-between;
+  font-size: 9px; color: #FFFFFF;
+  padding: 0 4px 4px;
+}
+.phone__alert-icon {
+  text-align: center;
+  margin-top: 4px;
+}
+.phone__alert-icon svg {
+  width: 28px; height: 28px;
+  color: #FF3B30;
+  animation: alert-shake 0.6s infinite;
+}
+@keyframes alert-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+.phone__alert-title {
+  text-align: center;
+  font-size: 13px; font-weight: 900;
+  color: #FF3B30;
+  letter-spacing: -0.01em;
+}
+.phone__alert-sub {
+  text-align: center;
+  font-size: 9px; color: #C9D6E8;
+  margin-top: -2px;
+}
+.phone__cctv {
+  background: #1a2235;
+  border-radius: 6px;
+  height: 90px;
+  margin-top: 4px;
+  position: relative;
+  overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.phone__cctv svg {
+  width: 30px; height: 30px;
+  color: rgba(255, 255, 255, 0.3);
+}
+.phone__cctv-box {
+  position: absolute;
+  top: 18%; left: 35%;
+  width: 30%; height: 65%;
+  border: 2px solid #FF3B30;
+  border-radius: 2px;
+  box-shadow: 0 0 8px #FF3B30;
+}
+.phone__btn {
+  background: #FF3B30;
+  color: white;
+  font-size: 10px; font-weight: 800;
+  padding: 6px;
+  border-radius: 5px;
+  text-align: center;
+  margin-top: 4px;
+}
+.phone__btn--secondary {
+  background: rgba(255, 255, 255, 0.08);
+  margin-top: 4px;
+}
+
+/* 클로징 메시지 */
+.hero__closing {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  max-width: 500px;
+  padding: 20px 24px;
+  background: rgba(10, 25, 41, 0.65);
+  border-left: 3px solid var(--cyan);
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+}
+[data-theme="light"] .hero__closing {
+  background: rgba(255, 255, 255, 0.75);
+}
+.hero__closing-icon {
+  width: 36px; height: 36px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--brand), var(--cyan));
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+}
+.hero__closing-icon svg {
+  width: 20px; height: 20px;
+  color: white;
+}
+.hero__closing-text strong {
+  display: block;
+  font-size: 15px; font-weight: 800;
+  color: var(--cyan);
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+.hero__closing-text p {
+  font-size: 13px;
+  color: var(--text-1);
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* 반응형 */
+@media (max-width: 1100px) {
+  .hero__inner {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    padding: 100px 32px 40px;
+  }
+  .hero__right { order: 2; }
+  .hero__visuals { max-width: 580px; margin: 0 auto; }
+}
+
+@media (max-width: 700px) {
+  .hero__inner { padding: 90px 20px 40px; }
+  .hero__title { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .features { grid-template-columns: repeat(2, 1fr); }
+  .hero__visuals { flex-direction: column; align-items: center; gap: 20px; }
+  .anomaly-panel { width: 100%; max-width: 380px; }
+  .phone { flex: 0 0 auto; }
+}
+/* ============================================================
+   이상행동 탐지 10종 섹션
+============================================================ */
+.behaviors {
+  position: relative; z-index: 1;
+  padding: 80px 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.section-header {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 8px;
+}
+.section-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 700;
+  color: var(--cyan);
+  background: rgba(61, 217, 214, 0.1);
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(61, 217, 214, 0.25);
+  letter-spacing: 0.05em;
+}
+.section-title {
+  font-size: clamp(28px, 3.5vw, 40px);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  margin: 16px 0 12px;
+  color: var(--text-0);
+}
+.section-desc {
+  font-size: 16px;
+  color: var(--text-2);
+  margin-bottom: 40px;
+  max-width: 700px;
+}
+
+.behavior-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+.behavior-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px 12px;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 10px;
+  text-align: center;
+  transition: all 0.3s;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.behavior-item:hover {
+  border-color: var(--danger);
+  background: rgba(255, 59, 48, 0.05);
+  transform: translateY(-2px);
+}
+.behavior-item__icon {
+  width: 36px; height: 36px;
+  color: var(--danger);
+}
+.behavior-item__name {
+  font-size: 13px; font-weight: 700;
+  color: var(--text-0);
+}
+
+/* ============================================================
+   대시보드 공통
+============================================================ */
+.dashboard-section {
+  position: relative; z-index: 1;
+  padding: 80px 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-card);
+}
+.card__head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px;
+}
+.card__title {
+  font-size: 16px; font-weight: 700;
+  color: var(--text-0);
+}
+.card__hint {
+  font-size: 12px; color: var(--text-3);
+}
+
+/* ============================================================
+   외부환경 비교 섹션
+============================================================ */
+.env-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 1000px) { .env-grid { grid-template-columns: 1fr; } }
+
+.kpi {
+  display: grid; gap: 6px;
+  padding: 16px 0;
+}
+.kpi__label {
+  font-size: 12px; color: var(--text-3);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.kpi__value {
+  font-size: 32px; font-weight: 800;
+  color: var(--text-0);
+  letter-spacing: -0.02em;
+}
+.kpi__unit {
+  font-size: 14px; color: var(--text-2);
+  margin-left: 4px;
+}
+.kpi__delta {
+  font-size: 12px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.kpi__delta--up { color: var(--danger); }
+.kpi__delta--down { color: var(--good); }
+
+.compare-row {
+  display: grid; grid-template-columns: 90px 1fr 1fr;
+  align-items: center; gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.compare-row:first-of-type { border-top: 0; }
+.compare-row__label { font-size: 13px; color: var(--text-2); font-weight: 500; }
+.compare-row__val {
+  font-size: 18px; font-weight: 700; color: var(--text-0);
+  display: flex; align-items: baseline; gap: 4px;
+}
+.compare-row__val small { font-size: 11px; color: var(--text-3); font-weight: 500; }
+
+.health-score {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center;
+  padding: 20px 0;
+}
+.health-ring {
+  position: relative;
+  width: 160px; height: 160px;
+  margin-bottom: 16px;
+}
+.health-ring svg { transform: rotate(-90deg); }
+.health-ring__bg { fill: none; stroke: var(--border); stroke-width: 10; }
+.health-ring__fg {
+  fill: none; stroke-width: 10;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.8s ease, stroke 0.3s;
+}
+.health-ring__num {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+.health-ring__num strong { font-size: 36px; font-weight: 900; color: var(--text-0); }
+.health-ring__num span { font-size: 11px; color: var(--text-3); }
+.health-status {
+  font-size: 18px; font-weight: 800;
+  padding: 6px 14px;
+  border-radius: 20px;
+}
+.health-status--good { color: var(--good); background: var(--good-bg); }
+.health-status--warn { color: var(--warn); background: var(--warn-bg); }
+.health-status--bad { color: var(--danger); background: var(--danger-bg); }
+
+/* ============================================================
+   실내환경 섹션
+============================================================ */
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+@media (max-width: 900px) { .metric-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.metric {
+  padding: 20px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.metric__head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.metric__label { font-size: 12px; color: var(--text-2); font-weight: 600; }
+.metric__icon {
+  width: 22px; height: 22px;
+  color: var(--brand);
+  opacity: 0.85;
+}
+.metric__value {
+  font-size: 30px; font-weight: 800;
+  color: var(--text-0);
+  letter-spacing: -0.02em;
+}
+.metric__unit {
+  font-size: 13px; color: var(--text-2);
+  margin-left: 4px; font-weight: 500;
+}
+.metric__bar {
+  height: 4px; border-radius: 2px;
+  background: var(--border);
+  margin-top: 12px;
+  overflow: hidden;
+}
+.metric__bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--brand), var(--cyan));
+  border-radius: 2px;
+  transition: width 0.6s ease;
+}
+
+.chart-wrap {
+  position: relative;
+  height: 260px;
+  margin-top: 8px;
+}
+
+/* ============================================================
+   보안 CCTV 섹션
+============================================================ */
+.cctv-layout {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 16px;
+}
+@media (max-width: 1100px) { .cctv-layout { grid-template-columns: 1fr; } }
+
+.cctv-view {
+  aspect-ratio: 16/9;
+  background:
+    linear-gradient(135deg, #0a1428, #1a2f4f);
+  border-radius: var(--radius-md);
+  position: relative;
+  overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border);
+}
+.cctv-view__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.cctv-view__img:not([src]),
+.cctv-view__img[src=""] {
+  display: none;
+}
+.cctv-view__placeholder {
+  color: var(--text-3);
+  font-size: 14px;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 8px;
+}
+.cctv-view__live {
+  position: absolute; top: 12px; left: 12px;
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255, 59, 48, 0.9);
+  color: white;
+  font-size: 11px; font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+}
+.cctv-view__live::before {
+  content: ''; width: 6px; height: 6px;
+  background: white;
+  border-radius: 50%;
+  animation: blink 1.5s infinite;
+}
+@keyframes blink { 50% { opacity: 0.3; } }
+
+.cctv-view__time {
+  position: absolute; bottom: 12px; right: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px; font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(0, 0, 0, 0.5);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+/* 멀티모델 칩 */
+.model-chips {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-top: 16px;
+}
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 12px; font-weight: 600;
+  color: var(--text-1);
+  transition: all 0.2s;
+}
+.chip__dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--good);
+  box-shadow: 0 0 8px var(--good);
+}
+.chip--off .chip__dot { background: var(--text-3); box-shadow: none; }
+.chip--off { color: var(--text-3); }
+.chip--alert .chip__dot { background: var(--danger); box-shadow: 0 0 8px var(--danger); animation: blink 1s infinite; }
+.chip--alert { color: var(--danger); border-color: var(--danger); }
+
+/* 이벤트 로그 */
+.event-log {
+  max-height: 480px;
+  overflow-y: auto;
+  display: flex; flex-direction: column;
+  gap: 8px;
+}
+.event-log::-webkit-scrollbar { width: 6px; }
+.event-log::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+
+.event {
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--brand);
+  border-radius: 8px;
+  display: grid; grid-template-columns: auto 1fr auto; gap: 10px;
+  align-items: center;
+}
+.event--fall { border-left-color: var(--danger); }
+.event--fire { border-left-color: var(--danger); }
+.event--fight { border-left-color: var(--danger); }
+.event--intrusion { border-left-color: var(--danger); }
+.event--loitering { border-left-color: var(--warn); }
+
+.event__icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+.event--loitering .event__icon { background: var(--warn-bg); color: var(--warn); }
+.event__icon svg { width: 16px; height: 16px; }
+
+.event__info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.event__title { font-size: 13px; font-weight: 700; color: var(--text-0); }
+.event__meta { font-size: 11px; color: var(--text-3); }
+.event__time { font-size: 11px; color: var(--text-3); font-family: 'JetBrains Mono', monospace; white-space: nowrap; }
+
+.event-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 13px;
+}
+
+/* ============================================================
+   푸터
+============================================================ */
+.footer {
+  position: relative; z-index: 1;
+  padding: 40px 32px 60px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  margin-top: 40px;
+}
+
+/* ============================================================
+   챗봇
+============================================================ */
+.chatbot {
+  position: fixed; bottom: 24px; right: 24px;
+  z-index: 200;
+}
+.chatbot__fab {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand), var(--cyan));
+  border: none;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: white;
+  box-shadow: 0 8px 24px rgba(43, 127, 255, 0.4);
+  transition: transform 0.2s;
+}
+.chatbot__fab:hover { transform: scale(1.05); }
+.chatbot__fab svg { width: 24px; height: 24px; }
+
+.chatbot__panel {
+  position: absolute;
+  bottom: 72px; right: 0;
+  width: 340px;
+  max-height: 480px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+.chatbot--open .chatbot__panel { display: flex; }
+
+.chatbot__head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.chatbot__head strong { font-size: 14px; color: var(--text-0); }
+.chatbot__body {
+  padding: 12px 14px;
+  flex: 1;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 8px;
+  max-height: 320px;
+}
+.chatbot__msg {
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  max-width: 85%;
+  line-height: 1.5;
+}
+.chatbot__msg--bot {
+  background: var(--surface);
+  color: var(--text-0);
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+.chatbot__msg--user {
+  background: linear-gradient(135deg, var(--brand), var(--cyan));
+  color: white;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+.chatbot__foot {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  display: flex; gap: 6px;
+}
+.chatbot__input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--text-0);
+  font-family: inherit;
+  outline: none;
+}
+.chatbot__input:focus { border-color: var(--brand); }
+.chatbot__send {
+  background: var(--brand);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 0 14px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* ============================================================
+   반응형
+============================================================ */
+@media (max-width: 900px) {
+  .nav { padding: 12px 20px; }
+  .nav__menu { display: none; }
+  .hero { padding: 100px 20px 40px; }
+  .hero__title { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .features { grid-template-columns: repeat(2, 1fr); }
+  .behavior-grid { grid-template-columns: repeat(2, 1fr); }
+  .dashboard-section, .behaviors { padding: 60px 20px; }
+}
+
+/* 입장 애니메이션 */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     상단 네비게이션
+============================================================ -->
+<nav class="nav">
+  <div class="nav__brand">
+    <div class="nav__brand-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2 L4 6 V12 C4 17 7.5 21 12 22 C16.5 21 20 17 20 12 V6 L12 2 Z"/>
+        <polyline points="7 12 10 15 17 9"/>
+      </svg>
+    </div>
+    <span>SafeStore AI</span>
+  </div>
+
+  <div class="nav__menu">
+    <a class="nav__link" href="#hero">홈</a>
+    <a class="nav__link" href="#dashboard">대시보드</a>
+    <a class="nav__link" href="#outdoor">외부환경</a>
+    <a class="nav__link" href="#indoor">실내환경</a>
+    <a class="nav__link" href="#security">보안</a>
+  </div>
+
+  <div class="nav__actions">
+    <button class="icon-btn" id="themeToggle" title="테마 전환">
+      <svg id="iconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    </button>
+    <button class="icon-btn" title="알림">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+    </button>
+  </div>
+</nav>
+
+<!-- ============================================================
+     HERO (메인 랜딩) - 2단 그리드: 좌측 텍스트 + 우측 이미지 자산
+============================================================ -->
+<section class="hero" id="hero">
+  <!-- 배경: CCTV+편의점 사진 (희미하게) -->
+  <div class="hero__bg" role="img" aria-label="무인매장 CCTV 보안 시스템"></div>
+
+  <div class="hero__inner">
+    <!-- 좌측: 텍스트 + 4기능 카드 (코드) -->
+    <div class="hero__left">
+      <div class="hero__eyebrow">무인매장 · 점포를 위한 통합 안전 · 환경 관리 솔루션</div>
+
+      <div class="hero__title">
+        <div class="hero__logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2 L4 6 V12 C4 17 7.5 21 12 22 C16.5 21 20 17 20 12 V6 L12 2 Z"/>
+            <polyline points="7.5 12 10 16 13 10 15 13 17 11"/>
+          </svg>
+        </div>
+        <h1 class="hero__wordmark">SafeStore AI</h1>
+      </div>
+
+      <p class="hero__tagline">환경과 안전을 하나로, 안심 운영의 시작</p>
+
+      <p class="hero__desc">
+        실내 <strong>온·습도 모니터링</strong>과 <strong>이상행동·화재 감지</strong>를 하나의 시스템으로.<br/>
+        무인매장의 안전과 쾌적함을 <strong>24시간</strong> 지켜드립니다.
+      </p>
+
+      <!-- 4가지 핵심 기능 카드 -->
+      <div class="features">
+        <div class="feature">
+          <div class="feature__icon">
+            <svg viewBox="0 0 64 64" fill="none">
+              <defs>
+                <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#3DD9D6"/>
+                  <stop offset="100%" stop-color="#2B7FFF"/>
+                </linearGradient>
+              </defs>
+              <rect x="16" y="6" width="14" height="36" rx="7" stroke="url(#g1)" stroke-width="3"/>
+              <circle cx="23" cy="46" r="8" fill="url(#g1)"/>
+              <rect x="20" y="14" width="6" height="28" rx="3" fill="url(#g1)" opacity="0.3"/>
+              <path d="M40 16 Q44 22 44 30 Q44 38 40 44 Q36 38 36 30 Q36 22 40 16 Z" fill="url(#g1)"/>
+            </svg>
+          </div>
+          <div class="feature__title">온·습도 모니터링</div>
+          <div class="feature__desc">실내 환경 데이터<br/>실시간 비교·분석</div>
+        </div>
+
+        <div class="feature">
+          <div class="feature__icon">
+            <svg viewBox="0 0 64 64" fill="none">
+              <path d="M8 8 L8 16 M8 8 L16 8" stroke="#3DD9D6" stroke-width="3" stroke-linecap="round"/>
+              <path d="M56 8 L56 16 M56 8 L48 8" stroke="#3DD9D6" stroke-width="3" stroke-linecap="round"/>
+              <path d="M8 56 L8 48 M8 56 L16 56" stroke="#3DD9D6" stroke-width="3" stroke-linecap="round"/>
+              <path d="M56 56 L56 48 M56 56 L48 56" stroke="#3DD9D6" stroke-width="3" stroke-linecap="round"/>
+              <circle cx="28" cy="18" r="4" fill="#FF3B30"/>
+              <path d="M28 22 L22 32 L26 34 L20 46 L28 38 L32 44 L36 32 L32 30 L36 22 Z" fill="#FF3B30"/>
+            </svg>
+          </div>
+          <div class="feature__title">이상행동 감지</div>
+          <div class="feature__desc">다양한 이상행동<br/>AI 실시간 탐지</div>
+        </div>
+
+        <div class="feature">
+          <div class="feature__icon">
+            <svg viewBox="0 0 64 64" fill="none">
+              <path d="M8 8 L8 16 M8 8 L16 8" stroke="#3DD9D6" stroke-width="3" stroke-linecap="round"/>
+              <path d="M56 8 L56 16 M56 8 L48 8" stroke="#3DD9D6" stroke-width="3" stroke-linecap="round"/>
+              <path d="M8 56 L8 48 M8 56 L16 56" stroke="#3DD9D6" stroke-width="3" stroke-linecap="round"/>
+              <path d="M56 56 L56 48 M56 56 L48 56" stroke="#3DD9D6" stroke-width="3" stroke-linecap="round"/>
+              <path d="M32 14 C28 22 22 26 22 36 C22 44 26 50 32 50 C38 50 42 44 42 36 C42 30 38 28 36 22 C34 26 32 24 32 14 Z" fill="#FF3B30"/>
+              <path d="M32 30 C30 34 28 36 28 40 C28 44 30 46 32 46 C34 46 36 44 36 40 C36 36 34 34 32 30 Z" fill="#FFB020"/>
+            </svg>
+          </div>
+          <div class="feature__title">화재 감지</div>
+          <div class="feature__desc">화재 징후 감지<br/>즉시 알림 발송</div>
+        </div>
+
+        <div class="feature">
+          <div class="feature__icon">
+            <svg viewBox="0 0 64 64" fill="none">
+              <defs>
+                <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#3DD9D6"/>
+                  <stop offset="100%" stop-color="#2B7FFF"/>
+                </linearGradient>
+              </defs>
+              <path d="M32 6 L12 14 V32 C12 44 20 54 32 58 C44 54 52 44 52 32 V14 L32 6 Z" fill="url(#g2)" opacity="0.9"/>
+            </svg>
+          </div>
+          <div class="feature__title">통합 관제</div>
+          <div class="feature__desc">하나의 화면에서<br/>모든 상황 관리</div>
+        </div>
+      </div>
+
+      <a class="scroll-indicator" href="#dashboard">
+        실시간 대시보드 보기
+        <span class="scroll-indicator__arrow">↓</span>
+      </a>
+    </div>
+
+    <!-- 우측: 코드로 만든 빨간박스 + 핸드폰 mockup + 클로징 -->
+    <div class="hero__right">
+      <div class="hero__visuals">
+        <!-- 빨간박스: 다양한 이상행동 탐지 (순수 SVG) -->
+        <div class="anomaly-panel">
+          <div class="anomaly-panel__head">
+            <div class="anomaly-panel__siren">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2 C8 2 5 5 5 9 V14 H4 V17 H20 V14 H19 V9 C19 5 16 2 12 2 Z M12 19 C10.9 19 10 19.9 10 21 H14 C14 19.9 13.1 19 12 19 Z"/>
+              </svg>
+            </div>
+            <div class="anomaly-panel__title">다양한 이상행동 탐지</div>
+          </div>
+          <div class="anomaly-panel__grid">
+            <div class="anomaly-item">
+              <svg class="anomaly-item__icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="4" r="2"/><path d="M9 7 L7 14 L4 18 L6 19 L9 15 L12 18 L11 22 L13 22 L15 17 L14 11 L17 9 L20 11 L21 10 L18 7 Z"/></svg>
+              <span>폭행</span>
+            </div>
+            <div class="anomaly-item">
+              <svg class="anomaly-item__icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 L4 6 V12 C4 17 7.5 21 12 22 C16.5 21 20 17 20 12 V6 L12 2 Z M12 6 L17 8 V12 C17 15 15 18 12 19 C9 18 7 15 7 12 V8 Z"/><circle cx="12" cy="12" r="2.5" fill="#0A1929"/></svg>
+              <span>침입</span>
+            </div>
+            <div class="anomaly-item">
+              <svg class="anomaly-item__icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="4" r="2"/><circle cx="18" cy="4" r="2"/><path d="M6 7 L4 14 L6 22 L8 22 L8 16 L12 14 L16 16 L16 22 L18 22 L20 14 L18 7 L14 11 L10 11 Z"/></svg>
+              <span>싸움</span>
+            </div>
+            <div class="anomaly-item">
+              <svg class="anomaly-item__icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="3" r="2"/><path d="M9 6 L7 12 L5 18 L7 19 L9 14 L11 17 L10 22 L12 22 L14 16 L13 11 L16 8 Z"/><rect x="15" y="14" width="6" height="6" rx="1"/></svg>
+              <span>투기</span>
+            </div>
+            <div class="anomaly-item">
+              <svg class="anomaly-item__icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="13" cy="4" r="2"/><path d="M13 7 L9 11 L4 13 L5 15 L10 14 L9 18 L7 22 L9 22 L12 18 L15 21 L17 22 L18 20 L16 17 L15 12 L18 10 L21 12 L22 10 L18 7 Z"/></svg>
+              <span>절도</span>
+            </div>
+            <div class="anomaly-item">
+              <svg class="anomaly-item__icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="4" r="2.5"/><path d="M12 7 L8 11 L8 17 L10 17 L10 22 L14 22 L14 17 L16 17 L16 11 Z M6 9 L10 12 M14 12 L18 9"/></svg>
+              <span>강도</span>
+            </div>
+            <div class="anomaly-item">
+              <svg class="anomaly-item__icon" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="14" width="6" height="6" transform="rotate(-15 7 17)"/><rect x="13" y="11" width="5" height="5" transform="rotate(20 15 13)"/><path d="M2 6 L8 12 L6 14 L0 8 Z M16 4 L22 10 L20 12 L14 6 Z"/></svg>
+              <span>기물파손</span>
+            </div>
+            <div class="anomaly-item">
+              <svg class="anomaly-item__icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="4" r="2"/><circle cx="16" cy="4" r="2"/><path d="M8 7 L6 14 L8 22 L10 22 L10 15 L14 15 L14 22 L16 22 L18 14 L16 7 Z"/></svg>
+              <span>데이트폭력</span>
+            </div>
+            <div class="anomaly-item">
+              <svg class="anomaly-item__icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="14" r="2"/><path d="M6 16 L9 18 L14 17 L20 19 L22 17 L15 13 L9 13 Z"/></svg>
+              <span>실신</span>
+            </div>
+            <div class="anomaly-item">
+              <svg class="anomaly-item__icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 C9 2 7 4 7 7 C7 9 8 10 8 12 C8 13 7 14 7 16 L7 22 L17 22 L17 16 C17 14 16 13 16 12 C16 10 17 9 17 7 C17 4 15 2 12 2 Z"/></svg>
+              <span>납치</span>
+            </div>
+            <div class="anomaly-item">
+              <svg class="anomaly-item__icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="4" r="2"/><path d="M12 7 L9 13 L11 18 L9 22 L11 22 L13 18 L15 22 L17 22 L15 18 L17 13 L20 11 L18 9 L14 11 L10 11 L6 9 L4 11 Z"/></svg>
+              <span>배회</span>
+            </div>
+            <div class="anomaly-item">
+              <svg class="anomaly-item__icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="14" cy="5" r="2"/><path d="M14 8 L11 13 L9 16 L4 17 L4 19 L11 19 L14 21 L17 22 L19 22 L19 20 L17 18 L18 14 L20 12 L18 10 Z"/><ellipse cx="6" cy="9" rx="2" ry="1.5"/></svg>
+              <span>주취행동</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 핸드폰 mockup (순수 HTML/CSS) -->
+        <div class="phone">
+          <div class="phone__screen">
+            <div class="phone__status">
+              <span>8:41</span>
+              <span>•••</span>
+            </div>
+            <div class="phone__alert-icon">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2 L2 22 L22 22 Z M12 9 L12 15 M12 17 L12 19" stroke="currentColor" stroke-width="0" fill="currentColor"/>
+                <path d="M12 2 L2 22 L22 22 Z" fill="currentColor"/>
+                <rect x="11" y="9" width="2" height="6" fill="#0A1929"/>
+                <rect x="11" y="17" width="2" height="2" fill="#0A1929"/>
+              </svg>
+            </div>
+            <div class="phone__alert-title">이상행동 감지</div>
+            <div class="phone__alert-sub">매장 1</div>
+            <div class="phone__cctv">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="8" r="3"/>
+                <path d="M5 20 C5 16 8 14 12 14 C16 14 19 16 19 20"/>
+              </svg>
+              <div class="phone__cctv-box"></div>
+            </div>
+            <div class="phone__btn">실시간 영상 보기</div>
+            <div class="phone__btn phone__btn--secondary">확인</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero__closing">
+        <div class="hero__closing-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2 L4 6 V12 C4 17 7.5 21 12 22 C16.5 21 20 17 20 12 V6 L12 2 Z"/>
+            <polyline points="9 12 11 14 15 10"/>
+          </svg>
+        </div>
+        <div class="hero__closing-text">
+          <strong>안전한 매장 운영,<br/>신뢰받는 무인 점포</strong>
+          <p>환경은 쾌적하게,<br/>위험은 빠르게 감지하고 대응합니다.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     이상행동 탐지 종류
+============================================================ -->
+<section class="behaviors reveal" id="behaviors">
+  <div class="section-header">
+    <span class="section-tag">⚠ DETECTION</span>
+  </div>
+  <h2 class="section-title">다양한 이상행동 탐지</h2>
+  <p class="section-desc">YOLO-Pose 기반 행동 인식과 AI Hub 학습 데이터를 결합해 매장 내 위험 상황을 즉시 포착합니다.</p>
+
+  <div class="behavior-grid">
+    <div class="behavior-item">
+      <svg class="behavior-item__icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="4" r="2"/><path d="M9 7 L7 14 L4 18 L6 19 L9 15 L12 18 L11 22 L13 22 L15 17 L14 11 L17 9 L20 11 L21 10 L18 7 Z"/></svg>
+      <div class="behavior-item__name">폭행</div>
+    </div>
+    <div class="behavior-item">
+      <svg class="behavior-item__icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="4" r="2"/><circle cx="18" cy="4" r="2"/><path d="M6 7 L4 14 L6 22 L8 22 L8 16 L12 14 L16 16 L16 22 L18 22 L20 14 L18 7 L14 11 L10 11 Z"/></svg>
+      <div class="behavior-item__name">싸움</div>
+    </div>
+    <div class="behavior-item">
+      <svg class="behavior-item__icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="13" cy="4" r="2"/><path d="M13 7 L9 11 L4 13 L5 15 L10 14 L9 18 L7 22 L9 22 L12 18 L15 21 L17 22 L18 20 L16 17 L15 12 L18 10 L21 12 L22 10 L18 7 Z"/></svg>
+      <div class="behavior-item__name">절도</div>
+    </div>
+    <div class="behavior-item">
+      <svg class="behavior-item__icon" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="14" width="6" height="6" transform="rotate(-15 7 17)"/><rect x="13" y="11" width="5" height="5" transform="rotate(20 15 13)"/><path d="M2 6 L8 12 L6 14 L0 8 Z M16 4 L22 10 L20 12 L14 6 Z"/></svg>
+      <div class="behavior-item__name">기물파손</div>
+    </div>
+    <div class="behavior-item">
+      <svg class="behavior-item__icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="14" r="2"/><path d="M6 16 L9 18 L14 17 L20 19 L22 17 L15 13 L9 13 Z"/></svg>
+      <div class="behavior-item__name">실신</div>
+    </div>
+    <div class="behavior-item">
+      <svg class="behavior-item__icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="4" r="2"/><path d="M12 7 L9 13 L11 18 L9 22 L11 22 L13 18 L15 22 L17 22 L15 18 L17 13 L20 11 L18 9 L14 11 L10 11 L6 9 L4 11 Z"/></svg>
+      <div class="behavior-item__name">배회</div>
+    </div>
+    <div class="behavior-item">
+      <svg class="behavior-item__icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 L4 6 V12 C4 17 7.5 21 12 22 C16.5 21 20 17 20 12 V6 L12 2 Z M12 6 L17 8 V12 C17 15 15 18 12 19 C9 18 7 15 7 12 V8 Z"/><circle cx="12" cy="12" r="2" fill="#0A1929"/></svg>
+      <div class="behavior-item__name">침입</div>
+    </div>
+    <div class="behavior-item">
+      <svg class="behavior-item__icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="3" r="2"/><path d="M9 6 L7 12 L5 18 L7 19 L9 14 L11 17 L10 22 L12 22 L14 16 L13 11 L16 8 Z"/><rect x="15" y="14" width="6" height="6" rx="1"/></svg>
+      <div class="behavior-item__name">투기</div>
+    </div>
+    <div class="behavior-item">
+      <svg class="behavior-item__icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="4" r="2.5"/><path d="M12 7 L8 11 L8 17 L10 17 L10 22 L14 22 L14 17 L16 17 L16 11 Z M6 9 L10 12 M14 12 L18 9"/></svg>
+      <div class="behavior-item__name">강도</div>
+    </div>
+    <div class="behavior-item">
+      <svg class="behavior-item__icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="4" r="2"/><circle cx="16" cy="4" r="2"/><path d="M8 7 L6 14 L8 22 L10 22 L10 15 L14 15 L14 22 L16 22 L18 14 L16 7 Z"/></svg>
+      <div class="behavior-item__name">데이트폭력</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     실시간 대시보드 진입
+============================================================ -->
+<section class="dashboard-section reveal" id="dashboard">
+  <div class="section-header">
+    <span class="section-tag">● LIVE</span>
+  </div>
+  <h2 class="section-title">실시간 통합 관제</h2>
+  <p class="section-desc">무인매장1 — 마지막 업데이트 <span id="lastUpdate">--:--:--</span></p>
+</section>
+
+<!-- ============================================================
+     외부환경 비교 + 건강지수
+============================================================ -->
+<section class="dashboard-section reveal" id="outdoor">
+  <div class="section-header">
+    <span class="section-tag">🌤 OUTDOOR</span>
+  </div>
+  <h2 class="section-title">외부 환경</h2>
+  <p class="section-desc">기상청·에어코리아 데이터를 기준으로 실내외 환경을 비교합니다.</p>
+
+  <div class="env-grid">
+    <!-- 외부 날씨 -->
+    <div class="card">
+      <div class="card__head">
+        <div class="card__title">현재 날씨</div>
+        <div class="card__hint">서울 · 기상청</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi__label">기온</div>
+        <div class="kpi__value"><span id="outTemp">--</span><span class="kpi__unit">°C</span></div>
+      </div>
+      <div class="compare-row">
+        <span class="compare-row__label">습도</span>
+        <span class="compare-row__val"><span id="outHumi">--</span><small>%</small></span>
+        <span class="compare-row__val" style="color: var(--text-3); font-size: 13px;">실외</span>
+      </div>
+      <div class="compare-row">
+        <span class="compare-row__label">풍속</span>
+        <span class="compare-row__val"><span id="outWind">--</span><small>m/s</small></span>
+        <span></span>
+      </div>
+      <div class="compare-row">
+        <span class="compare-row__label">강수</span>
+        <span class="compare-row__val"><span id="outRain">--</span></span>
+        <span></span>
+      </div>
+    </div>
+
+    <!-- 외부 대기질 -->
+    <div class="card">
+      <div class="card__head">
+        <div class="card__title">대기질</div>
+        <div class="card__hint">에어코리아</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi__label">PM2.5 (초미세먼지)</div>
+        <div class="kpi__value"><span id="outPM25">--</span><span class="kpi__unit">㎍/㎥</span></div>
+        <span class="kpi__delta" id="outPM25Grade">측정 중</span>
+      </div>
+      <div class="compare-row">
+        <span class="compare-row__label">PM10</span>
+        <span class="compare-row__val"><span id="outPM10">--</span><small>㎍/㎥</small></span>
+        <span class="compare-row__val" style="color: var(--text-3); font-size: 13px;" id="outPM10Grade">--</span>
+      </div>
+      <div class="compare-row">
+        <span class="compare-row__label">O₃</span>
+        <span class="compare-row__val"><span id="outO3">--</span><small>ppm</small></span>
+        <span></span>
+      </div>
+      <div class="compare-row">
+        <span class="compare-row__label">CO</span>
+        <span class="compare-row__val"><span id="outCO">--</span><small>ppm</small></span>
+        <span></span>
+      </div>
+    </div>
+
+    <!-- 건강 지수 -->
+    <div class="card">
+      <div class="card__head">
+        <div class="card__title">매장 환경 지수</div>
+        <div class="card__hint">자체 산출</div>
+      </div>
+      <div class="health-score">
+        <div class="health-ring">
+          <svg width="160" height="160" viewBox="0 0 160 160">
+            <circle class="health-ring__bg" cx="80" cy="80" r="68"/>
+            <circle class="health-ring__fg" id="healthRing" cx="80" cy="80" r="68"
+                    stroke="#22C55E"
+                    stroke-dasharray="427" stroke-dashoffset="100"/>
+          </svg>
+          <div class="health-ring__num">
+            <strong id="healthScore">--</strong>
+            <span>/ 100</span>
+          </div>
+        </div>
+        <div class="health-status health-status--good" id="healthStatus">측정 중</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     실내환경 모니터링
+============================================================ -->
+<section class="dashboard-section reveal" id="indoor">
+  <div class="section-header">
+    <span class="section-tag">🌿 INDOOR</span>
+  </div>
+  <h2 class="section-title">실내 환경 모니터링</h2>
+  <p class="section-desc">라즈베리파이 센서가 5초마다 수집한 실내 환경 데이터입니다.</p>
+
+  <!-- 4 지표 -->
+  <div class="metric-grid">
+    <div class="metric">
+      <div class="metric__head">
+        <span class="metric__label">실내 온도</span>
+        <svg class="metric__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4 4 0 1 0 5 0z"/></svg>
+      </div>
+      <div class="metric__value"><span id="inTemp">--</span><span class="metric__unit">°C</span></div>
+      <div class="metric__bar"><div class="metric__bar-fill" id="inTempBar" style="width:0%"></div></div>
+    </div>
+
+    <div class="metric">
+      <div class="metric__head">
+        <span class="metric__label">실내 습도</span>
+        <svg class="metric__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+      </div>
+      <div class="metric__value"><span id="inHumi">--</span><span class="metric__unit">%</span></div>
+      <div class="metric__bar"><div class="metric__bar-fill" id="inHumiBar" style="width:0%"></div></div>
+    </div>
+
+    <div class="metric">
+      <div class="metric__head">
+        <span class="metric__label">PM2.5</span>
+        <svg class="metric__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="6" cy="8" r="2"/><circle cx="14" cy="6" r="1.5"/><circle cx="18" cy="14" r="2"/><circle cx="10" cy="14" r="1"/><circle cx="14" cy="18" r="1.5"/></svg>
+      </div>
+      <div class="metric__value"><span id="inPM25">--</span><span class="metric__unit">㎍/㎥</span></div>
+      <div class="metric__bar"><div class="metric__bar-fill" id="inPM25Bar" style="width:0%"></div></div>
+    </div>
+
+    <div class="metric">
+      <div class="metric__head">
+        <span class="metric__label">PM10</span>
+        <svg class="metric__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8" cy="10" r="3"/><circle cx="17" cy="8" r="2"/><circle cx="16" cy="16" r="2.5"/></svg>
+      </div>
+      <div class="metric__value"><span id="inPM10">--</span><span class="metric__unit">㎍/㎥</span></div>
+      <div class="metric__bar"><div class="metric__bar-fill" id="inPM10Bar" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- 추이 차트 -->
+  <div class="card">
+    <div class="card__head">
+      <div class="card__title">최근 30분 추이</div>
+      <div class="card__hint">5초 간격</div>
+    </div>
+    <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     보안 CCTV
+============================================================ -->
+<section class="dashboard-section reveal" id="security">
+  <div class="section-header">
+    <span class="section-tag">🛡 SECURITY</span>
+  </div>
+  <h2 class="section-title">보안 · CCTV 관제</h2>
+  <p class="section-desc">멀티 모델이 동시에 영상을 분석합니다. 이상 상황 발생 시 텔레그램으로 즉시 알림.</p>
+
+  <div class="cctv-layout">
+    <div>
+      <!-- CCTV 영상 (라파이 → 노트북 프록시 → 브라우저 MJPEG) -->
+      <div class="cctv-view">
+        <div class="cctv-view__live" id="cctvLive">LIVE · CH1</div>
+        <!-- 실제 영상: /video-stream 엔드포인트가 MJPEG 송출 -->
+        <img id="cctvStream" class="cctv-view__img" src="" alt="실시간 CCTV 영상" />
+        <!-- 영상 불러오기 실패 시 placeholder -->
+        <div class="cctv-view__placeholder" id="cctvPlaceholder" style="display:none;">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="6" width="14" height="12" rx="2"/>
+            <path d="M16 10 L22 6 V18 L16 14 Z"/>
+          </svg>
+          <span id="cctvMsg">실시간 스트림 연결 대기 중</span>
+          <span style="font-size: 11px;" id="cctvPi">192.168.14.11 :9999</span>
+        </div>
+        <div class="cctv-view__time" id="cctvTime">--:--:--</div>
+      </div>
+
+      <!-- 멀티모델 칩 -->
+      <div class="model-chips">
+        <span class="chip"><span class="chip__dot"></span>YOLO-Pose (쓰러짐)</span>
+        <span class="chip"><span class="chip__dot"></span>YOLO-Pose (배회)</span>
+        <span class="chip chip--off"><span class="chip__dot"></span>화재 감지 (개발중)</span>
+        <span class="chip chip--off"><span class="chip__dot"></span>폭행 감지 (학습중)</span>
+        <span class="chip chip--off"><span class="chip__dot"></span>침입 감지 (학습중)</span>
+      </div>
+    </div>
+
+    <!-- 이벤트 로그 -->
+    <div class="card">
+      <div class="card__head">
+        <div class="card__title">실시간 이벤트</div>
+        <div class="card__hint" id="eventCount">0건</div>
+      </div>
+      <div class="event-log" id="eventLog">
+        <div class="event-empty">감지된 이벤트가 없습니다</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 푸터 -->
+<footer class="footer">
+  © 2026 SafeStore AI · 무인매장 통합 안전·환경 관리 솔루션
+</footer>
+
+<!-- ============================================================
+     챗봇
+============================================================ -->
+<div class="chatbot" id="chatbot">
+  <button class="chatbot__fab" id="chatbotToggle" title="AI 어시스턴트">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+  </button>
+  <div class="chatbot__panel">
+    <div class="chatbot__head">
+      <div class="nav__brand-icon" style="width:28px;height:28px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2 L4 6 V12 C4 17 7.5 21 12 22 C16.5 21 20 17 20 12 V6 L12 2 Z"/></svg>
+      </div>
+      <strong>SafeStore 어시스턴트</strong>
+    </div>
+    <div class="chatbot__body" id="chatBody">
+      <div class="chatbot__msg chatbot__msg--bot">안녕하세요! 매장 상태를 알려드릴 수 있어요. "현재 온도", "최근 이벤트", "공기질" 등을 물어보세요.</div>
+    </div>
+    <div class="chatbot__foot">
+      <input class="chatbot__input" id="chatInput" placeholder="질문을 입력하세요" />
+      <button class="chatbot__send" id="chatSend">전송</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     스크립트
+============================================================ -->
+<script>
+/* ============================================================
+   SafeStore AI 대시보드 — FastAPI 백엔드 연동
+   ------------------------------------------------------------
+   백엔드 엔드포인트 (main.py):
+     GET  /status            : 현재 센서값 + AI 권장값 + 건강점수
+     GET  /outdoor-air       : 에어코리아 실외 미세먼지
+     GET  /weather-forecast  : 기상청 날씨 예보
+     GET  /history?range=24h : 시계열 데이터
+     GET  /anomaly-events    : YOLO-Pose 이상 이벤트 (보안)
+     POST /chat              : Gemini 챗봇
+============================================================ */
+const API_BASE = window.location.origin;  // 같은 호스트에서 서빙되므로
+
+/* ── 공통 fetch 헬퍼 (에러 시 데모값 폴백) ─────────────── */
+async function apiGet(path) {
+  try {
+    const r = await fetch(API_BASE + path);
+    if (!r.ok) throw new Error(`${path} → ${r.status}`);
+    return await r.json();
+  } catch (e) {
+    console.warn(`[apiGet] ${path}`, e.message);
+    return null;
+  }
+}
+async function apiPost(path, body) {
+  try {
+    const r = await fetch(API_BASE + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(`${path} → ${r.status}`);
+    return await r.json();
+  } catch (e) {
+    console.warn(`[apiPost] ${path}`, e.message);
+    return null;
+  }
+}
+
+/* ── 이벤트 메타 ─────────────────────────────────────── */
+const EVENT_META = {
+  fall:       { name: '쓰러짐 감지',   cls: 'event--fall',      icon: '👤' },
+  loitering:  { name: '장시간 체류',   cls: 'event--loitering', icon: '⏱' },
+  fight:      { name: '폭행/싸움',    cls: 'event--fight',     icon: '⚠' },
+  fire:       { name: '화재 감지',    cls: 'event--fire',      icon: '🔥' },
+  intrusion:  { name: '침입 감지',    cls: 'event--intrusion', icon: '🚨' },
+  theft:      { name: '절도 의심',    cls: 'event--fight',     icon: '🛒' },
+  vandalism:  { name: '기물파손',    cls: 'event--fight',     icon: '💢' },
+  drunk:      { name: '주취 행동',    cls: 'event--loitering', icon: '🍾' },
+};
+
+/* ── 테마 토글 ───────────────────────────────────────── */
+const themeBtn = document.getElementById('themeToggle');
+const saved = localStorage.getItem('safestore-theme');
+if (saved) document.documentElement.setAttribute('data-theme', saved);
+themeBtn.addEventListener('click', () => {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('safestore-theme', next);
+});
+
+/* ── reveal 스크롤 애니메이션 ───────────────────────────── */
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('is-visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+/* ── CCTV 시계 ───────────────────────────────────────── */
+function tickClock() {
+  const t = new Date().toTimeString().slice(0, 8);
+  document.getElementById('cctvTime').textContent = t;
+  document.getElementById('lastUpdate').textContent = t;
+}
+setInterval(tickClock, 1000); tickClock();
+
+/* ── 환경 지수 계산 (백엔드 health_score 사용 + 폴백) ─── */
+function calcHealth({ inTemp, inHumi, inPM25, inPM10 }) {
+  let score = 100;
+  if (inTemp != null) {
+    if (inTemp < 18 || inTemp > 28) score -= 15;
+    else if (inTemp < 20 || inTemp > 26) score -= 5;
+  }
+  if (inHumi != null) {
+    if (inHumi < 30 || inHumi > 70) score -= 15;
+    else if (inHumi < 40 || inHumi > 60) score -= 5;
+  }
+  if (inPM25 != null) {
+    if (inPM25 > 75) score -= 25;
+    else if (inPM25 > 35) score -= 15;
+    else if (inPM25 > 15) score -= 5;
+  }
+  if (inPM10 != null) {
+    if (inPM10 > 150) score -= 20;
+    else if (inPM10 > 80) score -= 10;
+    else if (inPM10 > 30) score -= 3;
+  }
+  return Math.max(0, Math.min(100, score));
+}
+
+function renderHealth(score) {
+  const ring = document.getElementById('healthRing');
+  const numEl = document.getElementById('healthScore');
+  const statusEl = document.getElementById('healthStatus');
+  const C = 427;
+  ring.style.strokeDashoffset = C - (C * score / 100);
+  numEl.textContent = score;
+
+  let color, label, cls;
+  if (score >= 80)      { color = '#22C55E'; label = '쾌적'; cls = 'health-status--good'; }
+  else if (score >= 60) { color = '#FFB020'; label = '보통'; cls = 'health-status--warn'; }
+  else                  { color = '#FF3B30'; label = '주의'; cls = 'health-status--bad'; }
+  ring.style.stroke = color;
+  statusEl.textContent = label;
+  statusEl.className = 'health-status ' + cls;
+}
+
+/* ============================================================
+   1) 실내 환경 (백엔드 /status)
+   백엔드 응답 예:
+   {
+     "recorded_at": "...", "temperature": 23.4, "humidity": 52,
+     "pm1": 5, "pm25": 18, "pm10": 35,
+     "recommendation": { "temperature": 22.5, "humidity": 50, "pm25": 20 },
+     "health_score": 87
+   }
+============================================================ */
+async function fetchIndoor() {
+  const d = await apiGet('/status');
+  if (!d) {
+    // 백엔드 미가동 시 데모값
+    updateIndoor({ temperature: 23.4, humidity: 52, pm25: 18, pm10: 35 });
+    return;
+  }
+  // /status는 { current: {...}, recommendation: {...}, health_score: ... } 구조
+  const merged = Object.assign({}, d.current || {}, { health_score: d.health_score });
+  updateIndoor(merged);
+}
+
+function updateIndoor(d) {
+  const t   = d.temperature ?? d.in_temp ?? null;
+  const h   = d.humidity    ?? d.in_humi ?? null;
+  const p25 = d.pm25        ?? d.in_pm25 ?? null;
+  const p10 = d.pm10        ?? d.in_pm10 ?? null;
+
+  if (t != null) {
+    document.getElementById('inTemp').textContent = (+t).toFixed(1);
+    document.getElementById('inTempBar').style.width = Math.min(100, (t / 35) * 100) + '%';
+  }
+  if (h != null) {
+    document.getElementById('inHumi').textContent = (+h).toFixed(0);
+    document.getElementById('inHumiBar').style.width = Math.min(100, h) + '%';
+  }
+  if (p25 != null) {
+    document.getElementById('inPM25').textContent = (+p25).toFixed(0);
+    document.getElementById('inPM25Bar').style.width = Math.min(100, (p25 / 75) * 100) + '%';
+  }
+  if (p10 != null) {
+    document.getElementById('inPM10').textContent = (+p10).toFixed(0);
+    document.getElementById('inPM10Bar').style.width = Math.min(100, (p10 / 150) * 100) + '%';
+  }
+
+  // 백엔드가 health_score를 주면 그대로, 없으면 자체 계산
+  const score = (d.health_score != null)
+    ? Math.round(+d.health_score)
+    : calcHealth({ inTemp: +t, inHumi: +h, inPM25: +p25, inPM10: +p10 });
+  renderHealth(score);
+}
+
+/* ============================================================
+   2) 외부 환경 (백엔드 /outdoor-air + /weather-forecast)
+============================================================ */
+async function fetchOutdoor() {
+  // (a) 에어코리아 미세먼지
+  const air = await apiGet('/outdoor-air');
+  if (air && !air.error) {
+    document.getElementById('outPM25').textContent = air.pm25 ?? '--';
+    document.getElementById('outPM10').textContent = air.pm10 ?? '--';
+    const g25 = gradeFromPM25(+air.pm25);
+    const g10 = gradeFromPM10(+air.pm10);
+    document.getElementById('outPM25Grade').textContent = g25;
+    document.getElementById('outPM10Grade').textContent = g10;
+  } else {
+    document.getElementById('outPM25').textContent = 22;
+    document.getElementById('outPM10').textContent = 45;
+    document.getElementById('outPM25Grade').textContent = '보통';
+    document.getElementById('outPM10Grade').textContent = '보통';
+  }
+
+  // (b) 기상청 날씨
+  const wx = await apiGet('/weather-forecast');
+  if (wx && wx.current) {
+    document.getElementById('outTemp').textContent = wx.current.temp ?? '--';
+    document.getElementById('outHumi').textContent = wx.current.humi ?? '--';
+    document.getElementById('outWind').textContent = wx.current.wind ?? '--';
+    document.getElementById('outRain').textContent = wx.current.rain ?? '없음';
+  } else {
+    document.getElementById('outTemp').textContent = 24.5;
+    document.getElementById('outHumi').textContent = 58;
+    document.getElementById('outWind').textContent = 2.3;
+    document.getElementById('outRain').textContent = '없음';
+  }
+
+  // O3, CO 자리 — air 응답에 있으면 사용
+  document.getElementById('outO3').textContent = (air && air.o3)  ?? 0.042;
+  document.getElementById('outCO').textContent = (air && air.co)  ?? 0.4;
+}
+
+function gradeFromPM25(v) {
+  if (!isFinite(v)) return '--';
+  if (v <= 15) return '좋음';
+  if (v <= 35) return '보통';
+  if (v <= 75) return '나쁨';
+  return '매우나쁨';
+}
+function gradeFromPM10(v) {
+  if (!isFinite(v)) return '--';
+  if (v <= 30) return '좋음';
+  if (v <= 80) return '보통';
+  if (v <= 150) return '나쁨';
+  return '매우나쁨';
+}
+
+/* ============================================================
+   3) 추이 차트 (백엔드 /history?range=24h)
+============================================================ */
+const ctx = document.getElementById('trendChart').getContext('2d');
+const trendData = {
+  labels: [],
+  datasets: [
+    { label: '온도(°C)', data: [], borderColor: '#FF6B6B', backgroundColor: 'rgba(255,107,107,0.1)', tension: 0.35, borderWidth: 2, pointRadius: 0 },
+    { label: '습도(%)',  data: [], borderColor: '#2B7FFF', backgroundColor: 'rgba(43,127,255,0.1)', tension: 0.35, borderWidth: 2, pointRadius: 0 },
+    { label: 'PM2.5',    data: [], borderColor: '#3DD9D6', backgroundColor: 'rgba(61,217,214,0.1)', tension: 0.35, borderWidth: 2, pointRadius: 0 },
+  ]
+};
+const trendChart = new Chart(ctx, {
+  type: 'line',
+  data: trendData,
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#C9D6E8', font: { size: 12 } } } },
+    scales: {
+      x: { ticks: { color: '#5B6E89', font: { size: 10 } }, grid: { color: 'rgba(80,140,220,0.08)' } },
+      y: { ticks: { color: '#5B6E89', font: { size: 10 } }, grid: { color: 'rgba(80,140,220,0.08)' } }
+    }
+  }
+});
+
+async function fetchTrend() {
+  const rows = await apiGet('/history?range=24h');
+  if (!Array.isArray(rows) || !rows.length) {
+    // 데모 폴백
+    const now = Date.now();
+    trendData.labels = [];
+    trendData.datasets.forEach(s => s.data = []);
+    for (let i = 30; i >= 0; i--) {
+      trendData.labels.push(new Date(now - i * 60000).toTimeString().slice(0, 5));
+      trendData.datasets[0].data.push(22 + Math.random() * 3);
+      trendData.datasets[1].data.push(50 + Math.random() * 10);
+      trendData.datasets[2].data.push(15 + Math.random() * 15);
+    }
+    trendChart.update();
+    return;
+  }
+  // /history 응답: [{ hour: "2026-06-10 14:00", temperature, humidity, pm25 }, ...]
+  trendData.labels = rows.map(r => (r.hour || '').slice(11, 16));  // HH:MM
+  trendData.datasets[0].data = rows.map(r => r.temperature);
+  trendData.datasets[1].data = rows.map(r => r.humidity);
+  trendData.datasets[2].data = rows.map(r => r.pm25);
+  trendChart.update();
+}
+
+/* ============================================================
+   4) 이상행동 이벤트 (백엔드 /anomaly-events)
+============================================================ */
+async function fetchEvents() {
+  const events = await apiGet('/anomaly-events?limit=30');
+  if (!events) {
+    renderEvents([]);
+    return;
+  }
+  renderEvents(events);
+}
+
+function renderEvents(events) {
+  const log = document.getElementById('eventLog');
+  const countEl = document.getElementById('eventCount');
+  countEl.textContent = events.length + '건';
+
+  if (!events.length) {
+    log.innerHTML = '<div class="event-empty">감지된 이벤트가 없습니다</div>';
+    return;
+  }
+
+  log.innerHTML = events.map(e => {
+    const meta = EVENT_META[e.event_type] || { name: e.event_type, cls: '', icon: '●' };
+    const time = new Date(e.detected_at).toLocaleString('ko-KR', {
+      month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+    });
+    const conf = e.confidence ? (e.confidence * 100).toFixed(0) + '%' : '--';
+    const dur = e.duration_sec ? e.duration_sec + '초' : '';
+    return `
+      <div class="event ${meta.cls}">
+        <div class="event__icon">${meta.icon}</div>
+        <div class="event__info">
+          <div class="event__title">${meta.name}</div>
+          <div class="event__meta">신뢰도 ${conf}${dur ? ' · 지속 ' + dur : ''}</div>
+        </div>
+        <div class="event__time">${time}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+/* ============================================================
+   5) AI 챗봇 (백엔드 /chat — Gemini)
+============================================================ */
+const chatToggle = document.getElementById('chatbotToggle');
+const chatbot    = document.getElementById('chatbot');
+const chatInput  = document.getElementById('chatInput');
+const chatSend   = document.getElementById('chatSend');
+const chatBody   = document.getElementById('chatBody');
+
+chatToggle.addEventListener('click', () => chatbot.classList.toggle('chatbot--open'));
+
+function addMsg(text, who = 'bot') {
+  const div = document.createElement('div');
+  div.className = 'chatbot__msg chatbot__msg--' + who;
+  div.textContent = text;
+  chatBody.appendChild(div);
+  chatBody.scrollTop = chatBody.scrollHeight;
+}
+
+// 대화 히스토리 (Gemini가 컨텍스트로 사용)
+const chatHistory = [];
+
+async function sendChat() {
+  const q = chatInput.value.trim();
+  if (!q) return;
+  addMsg(q, 'user');
+  chatHistory.push({ role: 'user', content: q });
+  chatInput.value = '';
+  chatSend.disabled = true;
+
+  // 로딩 메시지
+  const loading = document.createElement('div');
+  loading.className = 'chatbot__msg chatbot__msg--bot';
+  loading.textContent = '...';
+  chatBody.appendChild(loading);
+  chatBody.scrollTop = chatBody.scrollHeight;
+
+  // 백엔드 Gemini 호출 (라우터 prefix: /chat, POST "")
+  const res = await apiPost('/chat', { message: q, history: chatHistory });
+  loading.remove();
+
+  // 응답 키는 answer
+  const text = res && (res.answer || res.reply);
+  if (text) {
+    addMsg(text, 'bot');
+    chatHistory.push({ role: 'assistant', content: text });
+  } else {
+    addMsg(ruleBasedReply(q), 'bot');
+  }
+  chatSend.disabled = false;
+}
+
+function ruleBasedReply(q) {
+  q = q.toLowerCase();
+  if (q.includes('온도')) return `현재 실내 온도는 ${document.getElementById('inTemp').textContent}°C 입니다.`;
+  if (q.includes('습도')) return `현재 실내 습도는 ${document.getElementById('inHumi').textContent}% 입니다.`;
+  if (q.includes('미세') || q.includes('공기')) {
+    return `PM2.5 ${document.getElementById('inPM25').textContent}㎍/㎥, PM10 ${document.getElementById('inPM10').textContent}㎍/㎥`;
+  }
+  if (q.includes('이벤트') || q.includes('이상')) return `최근 ${document.getElementById('eventCount').textContent}의 이벤트가 기록되었습니다.`;
+  return 'AI 챗봇 서버에 연결되지 않았습니다. (백엔드 가동 확인 필요)';
+}
+
+chatSend.addEventListener('click', sendChat);
+chatInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
+
+/* ============================================================
+   초기 실행 & 주기 갱신
+============================================================ */
+fetchIndoor();
+fetchOutdoor();
+fetchTrend();
+fetchEvents();
+
+setInterval(fetchIndoor,  5000);   // 5초
+setInterval(fetchOutdoor, 60000);  // 1분
+setInterval(fetchTrend,   30000);  // 30초
+setInterval(fetchEvents,  5000);   // 5초
+
+/* ============================================================
+   CCTV 영상 스트림
+============================================================ */
+const cctvImg = document.getElementById('cctvStream');
+const cctvPh = document.getElementById('cctvPlaceholder');
+const cctvLive = document.getElementById('cctvLive');
+const cctvMsg = document.getElementById('cctvMsg');
+const cctvPi = document.getElementById('cctvPi');
+
+// MJPEG 스트림 시작 (img 태그가 자동으로 무한 갱신)
+function startCctvStream() {
+  // 캐시 방지용 timestamp
+  cctvImg.src = `${API_BASE}/video-stream?t=${Date.now()}`;
+  cctvImg.onload = () => {
+    cctvImg.style.display = 'block';
+    cctvPh.style.display = 'none';
+  };
+  cctvImg.onerror = () => {
+    cctvImg.style.display = 'none';
+    cctvPh.style.display = 'flex';
+    cctvMsg.textContent = '영상 서버 연결 실패';
+  };
+}
+
+// 백엔드의 /video-status로 연결 상태 주기 확인
+async function checkCctvStatus() {
+  const s = await apiGet('/video-status');
+  if (!s || !s.available) {
+    cctvImg.style.display = 'none';
+    cctvPh.style.display = 'flex';
+    cctvMsg.textContent = 'CCTV 모듈 미가동';
+    cctvLive.style.opacity = '0.3';
+    return;
+  }
+  if (s.connected) {
+    cctvLive.style.opacity = '1';
+    cctvLive.textContent = 'LIVE · CH1';
+  } else {
+    cctvLive.style.opacity = '0.5';
+    cctvLive.textContent = '대기 중 · CH1';
+    if (cctvPi && s.pi_host) {
+      cctvPi.textContent = `${s.pi_host} :${s.pi_port}`;
+    }
+  }
+}
+
+// 시작
+startCctvStream();
+checkCctvStatus();
+setInterval(checkCctvStatus, 10000);  // 10초마다 연결 상태 확인
+</script>
+
+</body>
+</html>

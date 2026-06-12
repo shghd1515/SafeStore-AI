@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>관리자 페이지</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #F7F6F3;
+    --surface: #FFFFFF;
+    --border: #E5E2DA;
+    --text: #1A1916;
+    --text2: #6B6860;
+    --text3: #A39F95;
+    --accent: #2563EB;
+    --accent-light: #EFF6FF;
+    --danger: #DC2626;
+    --danger-bg: #FEF2F2;
+    --good: #16A34A;
+    --good-bg: #F0FDF4;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .logo-dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .user-email { font-size: 13px; color: var(--text3); }
+
+  .btn-sm {
+    padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 500;
+    cursor: pointer; border: 1px solid var(--border); background: var(--surface);
+    color: var(--text); font-family: 'DM Sans', sans-serif; transition: all 0.15s;
+    text-decoration: none; display: inline-block;
+  }
+  .btn-sm:hover { background: var(--bg); }
+  .btn-sm.danger { border-color: var(--danger); color: var(--danger); }
+  .btn-sm.primary { background: var(--accent); color: white; border-color: var(--accent); }
+  .btn-sm.primary:hover { opacity: 0.85; }
+
+  .main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+  .page-title { font-size: 20px; font-weight: 600; margin-bottom: 24px; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
+  .stat-value { font-size: 28px; font-weight: 300; font-family: 'DM Mono', monospace; letter-spacing: -1px; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+  .card-title { font-size: 13px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 16px; }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; padding: 8px 10px; color: var(--text3); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--border); font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text2); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg); }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; background: var(--accent-light); color: var(--accent); }
+  .badge.login  { background: var(--good-bg); color: var(--good); }
+  .badge.logout { background: #FEF9C3; color: #854D0E; }
+  .badge.signup { background: #F5F3FF; color: #7C3AED; }
+  .badge.visit  { background: var(--bg); color: var(--text3); }
+
+  .form-row { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 16px; flex-wrap: wrap; }
+  .form-group { flex: 1; min-width: 160px; }
+  .form-group label { display: block; font-size: 11px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .form-group input, .form-group select { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); outline: none; }
+  .form-group input:focus, .form-group select:focus { border-color: var(--accent); background: var(--surface); }
+
+  .action-text { max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .empty { text-align: center; color: var(--text3); padding: 20px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><div class="logo-dot"></div>IoT 환경 대시보드 — 관리자</div>
+  <div class="header-right">
+    <span class="user-email" id="user-email">-</span>
+    <a href="/" class="btn-sm">대시보드</a>
+    <button class="btn-sm danger" onclick="logout()">로그아웃</button>
+  </div>
+</header>
+
+<div class="main">
+  <div class="page-title">관리자 페이지</div>
+
+  <!-- 통계 -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">전체 데이터</div>
+      <div class="stat-value" id="total-count">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">오늘 수집</div>
+      <div class="stat-value" id="today-count">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">이벤트 수</div>
+      <div class="stat-value" id="event-count">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">최근 수집</div>
+      <div class="stat-value" style="font-size:16px" id="last-recorded">-</div>
+    </div>
+  </div>
+
+  <!-- 이벤트 수동 기록 -->
+  <div class="card">
+    <div class="card-title">이벤트 수동 기록</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>이벤트 이름</label>
+        <select id="event-select" onchange="toggleCustom(this.value)">
+          <option value="환기시작">환기시작</option>
+          <option value="환기종료">환기종료</option>
+          <option value="요리시작">요리시작</option>
+          <option value="요리종료">요리종료</option>
+          <option value="청소시작">청소시작</option>
+          <option value="청소종료">청소종료</option>
+          <option value="외출">외출</option>
+          <option value="귀가">귀가</option>
+          <option value="직접입력">직접입력</option>
+        </select>
+      </div>
+      <div class="form-group" id="custom-event-wrap" style="display:none">
+        <label>직접 입력</label>
+        <input type="text" id="custom-event" placeholder="이벤트 이름">
+      </div>
+      <button class="btn-sm primary" onclick="recordEvent()">기록하기</button>
+    </div>
+    <div id="event-result" style="font-size:13px;color:var(--good);display:none">✓ 이벤트가 기록됐습니다.</div>
+  </div>
+
+  <!-- 최근 센서 데이터 -->
+  <div class="card">
+    <div class="card-title">최근 센서 데이터 (최근 20개)</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>시각</th><th>온도</th><th>습도</th><th>PM2.5</th><th>PM10</th><th>이벤트</th></tr></thead>
+        <tbody id="data-tbody"><tr><td colspan="7" class="empty">로딩 중...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 이벤트 목록 -->
+  <div class="card">
+    <div class="card-title">이벤트 기록 목록</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>시각</th><th>이벤트</th><th>온도</th><th>습도</th><th>PM2.5</th></tr></thead>
+        <tbody id="events-tbody"><tr><td colspan="5" class="empty">로딩 중...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 사용자 접속 로그 -->
+  <div class="card">
+    <div class="card-title">사용자 접속 로그</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>시각</th><th>이메일</th><th>액션</th><th>User ID</th></tr></thead>
+        <tbody id="user-log-tbody"><tr><td colspan="4" class="empty">로딩 중...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- AI 자동제어 로그 -->
+  <div class="card">
+    <div class="card-title">AI 자동제어 로그</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>시각</th><th>온도</th><th>습도</th><th>PM2.5</th><th>목표온도</th><th>목표습도</th><th>조치</th></tr></thead>
+        <tbody id="control-log-tbody"><tr><td colspan="7" class="empty">로딩 중...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 알림 히스토리 -->
+  <div class="card">
+    <div class="card-title">알림 히스토리 (최근 50개)</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>시각</th>
+            <th>유형</th>
+            <th>측정값</th>
+            <th>임계값</th>
+            <th>메시지</th>
+          </tr>
+        </thead>
+        <tbody id="alerts-tbody">
+          <tr><td colspan="5" class="empty">로딩 중...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+<script>
+const SUPABASE_URL  = 'https://qazlmymqkzlgqrptjjxk.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhemxteW1xa3psZ3FycHRqanhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwMjUyNjIsImV4cCI6MjA5MDYwMTI2Mn0.RcjTa9rWImbadoBH56bg3G1Zopwixz4exVCqh1u6D00';
+const API = 'https://iot-environment-dashboard.onrender.com';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+sb.auth.getSession().then(({ data }) => {
+  if (!data.session) { window.location.href = '/login'; return; }
+  document.getElementById('user-email').textContent = data.session.user.email;
+  recordUserLog(data.session.user, 'page_visit');
+  loadAll();
+});
+
+async function logout() {
+  const { data } = await sb.auth.getSession();
+  if (data.session) await recordUserLog(data.session.user, 'logout');
+  await sb.auth.signOut();
+  window.location.href = '/login';
+}
+
+async function recordUserLog(user, action) {
+  try {
+    await sb.from('auth_logs').insert({ email: user.email, user_id: user.id, action });
+  } catch(e) {}
+}
+
+function toggleCustom(val) {
+  document.getElementById('custom-event-wrap').style.display = val === '직접입력' ? 'block' : 'none';
+}
+
+async function recordEvent() {
+  const select = document.getElementById('event-select').value;
+  const custom = document.getElementById('custom-event').value.trim();
+  const eventName = select === '직접입력' ? custom : select;
+  if (!eventName) { alert('이벤트 이름을 입력해주세요.'); return; }
+  try {
+    await fetch(`${API}/event`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_name: eventName })
+    });
+    const el = document.getElementById('event-result');
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; loadAll(); }, 2000);
+  } catch(e) { alert('이벤트 기록 실패: ' + e.message); }
+}
+
+async function loadAll() {
+  await Promise.all([
+    loadStats(),
+    loadData(),
+    loadEvents(),
+    loadUserLogs(),
+    loadControlLogs(),
+    loadAlerts(),
+  ]);
+}
+
+async function loadAlerts() {
+  const tbody = document.getElementById('alerts-tbody');
+  try {
+    const res  = await fetch(`${API}/alerts`);
+    const logs = await res.json();
+    if (!logs?.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">알림 없음</td></tr>';
+      return;
+    }
+    const typeIcon = {
+      '미세먼지': '🚨',
+      '온도높음':  '🌡️',
+      '온도낮음':  '🥶',
+      '습도높음':  '💧',
+      '습도낮음':  '🏜️',
+    };
+    tbody.innerHTML = logs.map(r => `
+      <tr>
+        <td>${(r.created_at||'').slice(0,16)}</td>
+        <td>${typeIcon[r.alert_type] || ''} ${r.alert_type}</td>
+        <td>${r.value ?? '-'}</td>
+        <td>${r.threshold ?? '-'}</td>
+        <td>${r.message || '-'}</td>
+      </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">오류 발생</td></tr>';
+  }
+}
+
+async function loadStats() {
+  try {
+    const res = await fetch(`${API}/status`);
+    const d   = await res.json();
+    document.getElementById('last-recorded').textContent = (d.current?.recorded_at||'-').slice(11,16);
+  } catch(e) {}
+  try {
+    const { count } = await sb.from('sensor_combined').select('*', { count:'exact', head:true });
+    document.getElementById('total-count').textContent = (count??'-').toLocaleString();
+  } catch(e) {}
+  try {
+    const today = new Date().toISOString().slice(0,10);
+    const { count } = await sb.from('sensor_combined').select('*', { count:'exact', head:true }).gte('recorded_at', today);
+    document.getElementById('today-count').textContent = (count??'-').toLocaleString();
+  } catch(e) {}
+  try {
+    const { count } = await sb.from('sensor_combined').select('*', { count:'exact', head:true }).not('event','is',null);
+    document.getElementById('event-count').textContent = (count??'-').toLocaleString();
+  } catch(e) {}
+}
+
+async function loadData() {
+  const tbody = document.getElementById('data-tbody');
+  try {
+    const { data } = await sb.from('sensor_combined').select('*').order('recorded_at', { ascending:false }).limit(20);
+    if (!data?.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">데이터 없음</td></tr>'; return; }
+    tbody.innerHTML = data.map(r => `
+      <tr>
+        <td>${r.id}</td><td>${(r.recorded_at||'').slice(0,16)}</td>
+        <td>${r.temperature??'-'}°C</td><td>${r.humidity??'-'}%</td>
+        <td>${r.pm25??'-'}</td><td>${r.pm10??'-'}</td>
+        <td>${r.event?`<span class="badge">${r.event}</span>`:'-'}</td>
+      </tr>`).join('');
+  } catch(e) { tbody.innerHTML = '<tr><td colspan="7" class="empty">오류 발생</td></tr>'; }
+}
+
+async function loadEvents() {
+  const tbody = document.getElementById('events-tbody');
+  try {
+    const { data } = await sb.from('sensor_combined').select('*').not('event','is',null).order('recorded_at', { ascending:false }).limit(20);
+    if (!data?.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">이벤트 없음</td></tr>'; return; }
+    tbody.innerHTML = data.map(r => `
+      <tr>
+        <td>${(r.recorded_at||'').slice(0,16)}</td>
+        <td><span class="badge">${r.event}</span></td>
+        <td>${r.temperature??'-'}°C</td><td>${r.humidity??'-'}%</td><td>${r.pm25??'-'}</td>
+      </tr>`).join('');
+  } catch(e) { tbody.innerHTML = '<tr><td colspan="5" class="empty">오류 발생</td></tr>'; }
+}
+
+async function loadUserLogs() {
+  const tbody = document.getElementById('user-log-tbody');
+  try {
+    const { data } = await sb.from('auth_logs').select('*').order('created_at', { ascending:false }).limit(30);
+    if (!data?.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty">로그 없음 (Supabase SQL Editor에서 auth_logs 테이블 생성 필요)</td></tr>'; return; }
+    const actionLabel = {
+      'login':      '<span class="badge login">로그인</span>',
+      'logout':     '<span class="badge logout">로그아웃</span>',
+      'signup':     '<span class="badge signup">회원가입</span>',
+      'page_visit': '<span class="badge visit">페이지 방문</span>',
+    };
+    tbody.innerHTML = data.map(r => `
+      <tr>
+        <td>${(r.created_at||'').slice(0,16)}</td>
+        <td>${r.email||'-'}</td>
+        <td>${actionLabel[r.action]||`<span class="badge">${r.action}</span>`}</td>
+        <td style="font-size:10px;color:var(--text3)">${(r.user_id||'').slice(0,8)}...</td>
+      </tr>`).join('');
+  } catch(e) { tbody.innerHTML = '<tr><td colspan="4" class="empty">auth_logs 테이블을 생성해주세요</td></tr>'; }
+}
+
+async function loadControlLogs() {
+  const tbody = document.getElementById('control-log-tbody');
+  try {
+    const res  = await fetch(`${API}/chat/logs`);
+    const logs = await res.json();
+    if (!logs?.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">로그 없음</td></tr>'; return; }
+    tbody.innerHTML = logs.map(r => `
+      <tr>
+        <td>${(r.logged_at||'').slice(0,16)}</td>
+        <td>${r.current_temp??'-'}°C</td><td>${r.current_humi??'-'}%</td><td>${r.current_pm25??'-'}</td>
+        <td>${r.target_temp??'-'}°C</td><td>${r.target_humi??'-'}%</td>
+        <td class="action-text" title="${r.action||''}">${r.action||'-'}</td>
+      </tr>`).join('');
+  } catch(e) { tbody.innerHTML = '<tr><td colspan="7" class="empty">오류 발생</td></tr>'; }
+}
+
+setInterval(loadAll, 30000);
+</script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+"""
+========================================================================
+main.py 에 추가할 영상 스트림 엔드포인트
+========================================================================
+복사할 위치: main.py 파일의 거의 끝 부분
+(/anomaly-events 와 /anomaly-events/count 엔드포인트 아래에 추가)
+========================================================================
+"""
+
+# ── 상단 import 영역에 추가할 줄들 ────────────────────────────────────
+# (이미 from fastapi.responses import FileResponse 가 있으면 StreamingResponse만 추가)
+from fastapi.responses import StreamingResponse
+
+# vision 패키지 import
+try:
+    from vision import stream_proxy
+    HAS_STREAM_PROXY = True
+    # 서버 시작 시 백그라운드 영상 수신 시작
+    stream_proxy.start_proxy()
+    print("[main] 영상 프록시 시작됨")
+except ImportError as e:
+    HAS_STREAM_PROXY = False
+    print(f"[main] 영상 프록시 import 실패: {e}")
+
+
+# ── /anomaly-events 엔드포인트들 아래에 추가 ─────────────────────────
+
+@app.get("/video-stream", summary="실시간 CCTV 영상 (MJPEG)", tags=["보안"])
+def video_stream():
+    """
+    라즈베리파이2호 → 노트북 프록시 → 브라우저로 실시간 영상 송출.
+    multipart/x-mixed-replace 방식 (MJPEG over HTTP).
+    
+    사용:
+        <img src="/video-stream" />
+    
+    브라우저가 자동으로 무한 갱신하며 영상을 표시.
+    """
+    if not HAS_STREAM_PROXY:
+        raise HTTPException(503, "vision 모듈을 로드할 수 없습니다.")
+    return StreamingResponse(
+        stream_proxy.mjpeg_generator(target_fps=15),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+    )
+
+
+@app.get("/video-status", summary="CCTV 연결 상태", tags=["보안"])
+def video_status():
+    """대시보드에서 연결 상태 확인용."""
+    if not HAS_STREAM_PROXY:
+        return {"available": False, "connected": False, "reason": "모듈 없음"}
+    return {
+        "available": True,
+        "connected": stream_proxy.is_connected(),
+        "pi_host": stream_proxy.PI_HOST,
+        "pi_port": stream_proxy.PI_PORT,
+    }

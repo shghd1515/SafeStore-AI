@@ -1,0 +1,34 @@
+# ── 웹 서버 ─────────────────────────────────────
+fastapi
+uvicorn[standard]
+
+# ── DB ───────────────────────────────────────────
+sqlalchemy
+psycopg2-binary
+pymysql
+
+# ── 환경 변수 ───────────────────────────────────
+python-dotenv
+
+# ── 데이터 & ML ─────────────────────────────────
+pandas
+numpy
+scikit-learn
+joblib
+xgboost
+lightgbm
+
+# ── AI 챗봇 (Gemini) ────────────────────────────
+google-genai>=1.0.0
+
+# ── 스케줄러 & HTTP ─────────────────────────────
+apscheduler
+httpx
+requests
+
+# ── Vision (YOLO 이상행동/화재 감지) ───────────
+# pose_detector 실행하는 머신(노트북)에만 필요
+ultralytics
+opencv-python
+# torch는 CUDA 버전에 맞게 별도 설치 권장:
+#   https://pytorch.org/get-started/locally/

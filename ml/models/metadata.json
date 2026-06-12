@@ -1,0 +1,82 @@
+{
+  "trained_at": "2026-04-07T11:58:02.881955",
+  "n_samples": 6891,
+  "features": [
+    "hour_sin",
+    "hour_cos",
+    "dow_sin",
+    "dow_cos",
+    "month_sin",
+    "month_cos",
+    "minute_sin",
+    "minute_cos",
+    "is_weekend",
+    "time_group",
+    "temp_ma10",
+    "temp_ma30",
+    "temp_ma60",
+    "temp_ma120",
+    "humi_ma10",
+    "humi_ma30",
+    "humi_ma60",
+    "humi_ma120",
+    "pm25_ma10",
+    "pm25_ma30",
+    "pm25_ma60",
+    "pm25_ma120",
+    "temp_diff",
+    "humi_diff",
+    "pm25_diff",
+    "temp_diff5",
+    "humi_diff5",
+    "pm25_diff5",
+    "temp_diff10",
+    "humi_diff10",
+    "pm25_diff10",
+    "temp_accel",
+    "humi_accel",
+    "pm25_accel",
+    "temp_std10",
+    "humi_std10",
+    "pm25_std10",
+    "temp_humi",
+    "pm25_hour",
+    "has_event"
+  ],
+  "metrics_temp": {
+    "model": "GradientBoosting",
+    "cv_mae": 0.0717,
+    "mae": 0.0084,
+    "r2": 0.9999,
+    "all_models": {
+      "RandomForest": 0.0817,
+      "GradientBoosting": 0.0717,
+      "XGBoost": 0.0856,
+      "LightGBM": 0.0956
+    }
+  },
+  "metrics_humi": {
+    "model": "GradientBoosting",
+    "cv_mae": 0.1163,
+    "mae": 0.0285,
+    "r2": 0.9997,
+    "all_models": {
+      "RandomForest": 0.1519,
+      "GradientBoosting": 0.1163,
+      "XGBoost": 0.203,
+      "LightGBM": 0.1634
+    }
+  },
+  "metrics_pm25": {
+    "model": "LightGBM",
+    "cv_mae": 9.9132,
+    "mae": 1.3832,
+    "r2": 0.9676,
+    "all_models": {
+      "RandomForest": 10.4298,
+      "GradientBoosting": 10.3162,
+      "XGBoost": 10.0764,
+      "LightGBM": 9.9132
+    }
+  }
+}
