@@ -1,34 +1,41 @@
-# ── 웹 서버 ─────────────────────────────────────
+# ============================================================
+# SafeStore AI - Render 배포용 requirements.txt
+# ============================================================
+# Vision (YOLO, OpenCV, torch)는 노트북에서만 사용하므로 제외
+# Render에는 백엔드 API + ML 예측 + 챗봇만 배포
+
+# ── 웹 서버 ──────────────────────────────────
 fastapi
 uvicorn[standard]
 
-# ── DB ───────────────────────────────────────────
+# ── DB ───────────────────────────────────────
 sqlalchemy
 psycopg2-binary
 pymysql
 
-# ── 환경 변수 ───────────────────────────────────
+# ── 환경 변수 ────────────────────────────────
 python-dotenv
 
-# ── 데이터 & ML ─────────────────────────────────
+# ── 데이터 & ML (학습된 모델 로딩만, 학습 안 함) ──
 pandas
 numpy
-scikit-learn
+scikit-learn==1.8.0
 joblib
 xgboost
 lightgbm
 
-# ── AI 챗봇 (Gemini) ────────────────────────────
+# ── AI 챗봇 (Gemini) ─────────────────────────
 google-genai>=1.0.0
 
-# ── 스케줄러 & HTTP ─────────────────────────────
+# ── 스케줄러 & HTTP ──────────────────────────
 apscheduler
 httpx
 requests
 
-# ── Vision (YOLO 이상행동/화재 감지) ───────────
-# pose_detector 실행하는 머신(노트북)에만 필요
-ultralytics
-opencv-python
-# torch는 CUDA 버전에 맞게 별도 설치 권장:
-#   https://pytorch.org/get-started/locally/
+# ============================================================
+# Vision (Render 배포에서 제외 — 노트북에서만 필요)
+# ============================================================
+# ultralytics, opencv-python, torch 는
+# 라파이 영상 처리할 때만 필요. Render는 라파이에 접근 불가하므로 제외.
+# 로컬 노트북에서는 별도 설치:
+#   pip install ultralytics opencv-python
