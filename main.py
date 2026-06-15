@@ -330,14 +330,30 @@ SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "")
 
 def verify_token(authorization: str = None) -> dict:
     """JWT 토큰을 검증하고 사용자 정보 반환"""
+    print(f"[AUTH DEBUG] authorization: {authorization[:30] if authorization else 'None'}...")
+    print(f"[AUTH DEBUG] JWT_SECRET 길이: {len(SUPABASE_JWT_SECRET) if SUPABASE_JWT_SECRET else 0}")
+    print(f"[AUTH DEBUG] JWT_SECRET 앞 10자: {SUPABASE_JWT_SECRET[:10] if SUPABASE_JWT_SECRET else 'EMPTY'}")
+    
     if not authorization:
+        print("[AUTH DEBUG] ❌ Authorization 헤더 없음")
         raise HTTPException(status_code=401, detail="Authorization 헤더 없음")
     
-    # "Bearer xxxxx" 형식에서 토큰만 추출
     if authorization.startswith("Bearer "):
         token = authorization[7:]
     else:
         token = authorization
+    
+    print(f"[AUTH DEBUG] Token 앞 50자: {token[:50]}")
+    
+    try:
+        # 먼저 검증 없이 디코딩해서 내용 확인
+        unverified = jwt.decode(token, options={"verify_signature": False})
+        print(f"[AUTH DEBUG] Token payload (unverified): {unverified}")
+        print(f"[AUTH DEBUG] Token aud: {unverified.get('aud')}")
+        print(f"[AUTH DEBUG] Token iss: {unverified.get('iss')}")
+        print(f"[AUTH DEBUG] Token alg from header: {jwt.get_unverified_header(token)}")
+    except Exception as e:
+        print(f"[AUTH DEBUG] Token decode 실패: {e}")
     
     try:
         payload = jwt.decode(
@@ -346,8 +362,10 @@ def verify_token(authorization: str = None) -> dict:
             algorithms=["HS256"],
             audience="authenticated"
         )
-        return payload  # {"sub": user_id, "email": "...", ...}
+        print(f"[AUTH DEBUG] ✅ 검증 성공: {payload.get('email')}")
+        return payload
     except PyJWTError as e:
+        print(f"[AUTH DEBUG] ❌ 검증 실패: {type(e).__name__}: {str(e)}")
         raise HTTPException(status_code=401, detail=f"토큰 검증 실패: {str(e)}")
 
 def get_user_role(user_id: str) -> str:
