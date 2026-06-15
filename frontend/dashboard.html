@@ -1141,6 +1141,7 @@ body::after {
   transform: translateY(0);
 }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -2133,6 +2134,198 @@ async function checkCctvStatus() {
 startCctvStream();
 checkCctvStatus();
 setInterval(checkCctvStatus, 10000);  // 10초마다 연결 상태 확인
+</script>
+
+<!-- ============================================================
+     인증 체크 (로그인 안 했으면 /login으로 이동)
+============================================================ -->
+<script>
+(async function() {
+  const SUPABASE_URL  = 'https://qazlmymqkzlgqrptjjxk.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhemxteW1xa3psZ3FycHRqanhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwMjUyNjIsImV4cCI6MjA5MDYwMTI2Mn0.RcjTa9rWImbadoBH56bg3G1Zopwixz4exVCqh1u6D00';
+
+  const { createClient } = supabase;
+  const sbAuth = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  // 세션 확인
+  const { data: { session } } = await sbAuth.auth.getSession();
+
+  if (!session) {
+    // 로그인 안 됨 → 로그인 페이지로
+    window.location.href = '/login';
+    return;
+  }
+
+  // 권한 확인
+  try {
+    const res = await fetch('/api/auth/me', {
+      headers: { 'Authorization': `Bearer ${session.access_token}` }
+    });
+
+    if (!res.ok) {
+      // 토큰 만료 등 → 로그아웃 후 로그인 페이지로
+      await sbAuth.auth.signOut();
+      window.location.href = '/login';
+      return;
+    }
+
+    const userData = await res.json();
+
+    if (userData.role === 'pending') {
+      // 승인 대기 중 → 로그아웃 후 로그인 페이지로
+      alert('⏳ 관리자 승인 대기 중입니다.\n승인 완료 시 로그인 가능합니다.');
+      await sbAuth.auth.signOut();
+      window.location.href = '/login';
+      return;
+    }
+
+    if (userData.role !== 'user' && userData.role !== 'admin') {
+      alert('접근 권한이 없습니다.');
+      await sbAuth.auth.signOut();
+      window.location.href = '/login';
+      return;
+    }
+
+    // 로그인 정보를 화면에 표시
+    window.__currentUser = userData;
+    renderUserBadge(userData);
+
+  } catch (e) {
+    console.error('인증 확인 실패:', e);
+    window.location.href = '/login';
+  }
+
+  // ====== 사용자 배지 렌더링 ======
+  function renderUserBadge(user) {
+    // 기존 배지 있으면 제거
+    const old = document.getElementById('user-badge');
+    if (old) old.remove();
+
+    // 새 배지 만들기
+    const badge = document.createElement('div');
+    badge.id = 'user-badge';
+    badge.innerHTML = `
+      <div class="user-badge__info">
+        <span class="user-badge__icon">👤</span>
+        <span class="user-badge__email">${user.email}</span>
+        ${user.role === 'admin' ? '<span class="user-badge__role">관리자</span>' : ''}
+      </div>
+      ${user.role === 'admin' ? '<a href="/admin" class="user-badge__btn user-badge__btn--admin">관리자</a>' : ''}
+      <button class="user-badge__btn" onclick="logout()">로그아웃</button>
+    `;
+    document.body.appendChild(badge);
+
+    // 스타일 주입
+    const style = document.createElement('style');
+    style.textContent = `
+      #user-badge {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(28, 35, 46, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(61, 217, 214, 0.3);
+        border-radius: 12px;
+        padding: 8px 12px;
+        font-size: 13px;
+        color: #E6EDF3;
+        z-index: 9999;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+      }
+      .user-badge__info {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding-right: 8px;
+        border-right: 1px solid rgba(255,255,255,0.1);
+      }
+      .user-badge__icon {
+        font-size: 16px;
+      }
+      .user-badge__email {
+        font-weight: 500;
+        max-width: 180px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .user-badge__role {
+        background: #3DD9D6;
+        color: #0E1116;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-left: 4px;
+      }
+      .user-badge__btn {
+        background: transparent;
+        border: 1px solid rgba(255,255,255,0.15);
+        color: #E6EDF3;
+        font-size: 12px;
+        padding: 6px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-family: inherit;
+        text-decoration: none;
+        transition: all 0.15s;
+      }
+      .user-badge__btn:hover {
+        background: rgba(61, 217, 214, 0.15);
+        border-color: #3DD9D6;
+        color: #3DD9D6;
+      }
+      .user-badge__btn--admin {
+        background: rgba(61, 217, 214, 0.1);
+        border-color: rgba(61, 217, 214, 0.4);
+        color: #3DD9D6;
+      }
+      .user-badge__btn--admin:hover {
+        background: #3DD9D6;
+        color: #0E1116;
+      }
+      @media (max-width: 640px) {
+        #user-badge {
+          top: 8px;
+          right: 8px;
+          padding: 6px 10px;
+          font-size: 12px;
+        }
+        .user-badge__email {
+          max-width: 100px;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // ====== 로그아웃 함수 (전역) ======
+  window.logout = async function() {
+    if (!confirm('로그아웃하시겠습니까?')) return;
+
+    // 접속 로그 기록 (로그아웃)
+    try {
+      const { data: { session } } = await sbAuth.auth.getSession();
+      if (session) {
+        fetch('/api/auth/log-access', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ action: 'logout' })
+        }).catch(() => {});
+      }
+    } catch (e) {}
+
+    await sbAuth.auth.signOut();
+    window.location.href = '/login';
+  };
+})();
 </script>
 
 </body>
