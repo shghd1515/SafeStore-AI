@@ -328,45 +328,91 @@ class EventRequest(BaseModel):
 # ── 인증 헬퍼 ──────────────────────────────────────────────────────────────
 SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "")
 
+# ── JWKS (새 ES256 방식 지원) ──────────────────────────────────────────
+SUPABASE_URL_BASE = os.getenv("SUPABASE_URL", "https://qazlmymqkzlgqrptjjxk.supabase.co")
+JWKS_URL = f"{SUPABASE_URL_BASE}/auth/v1/.well-known/jwks.json"
+
+# JWKS 캐싱 (매번 가져오면 느림)
+_jwks_cache = {"keys": None, "fetched_at": 0}
+_JWKS_TTL = 3600  # 1시간
+
+def get_jwks():
+    """Supabase JWKS 가져오기 (캐싱)"""
+    import time
+    now = time.time()
+    if _jwks_cache["keys"] and (now - _jwks_cache["fetched_at"] < _JWKS_TTL):
+        return _jwks_cache["keys"]
+
+    try:
+        response = requests.get(JWKS_URL, timeout=5)
+        response.raise_for_status()
+        jwks_data = response.json()
+        _jwks_cache["keys"] = jwks_data.get("keys", [])
+        _jwks_cache["fetched_at"] = now
+        print(f"[JWKS] {len(_jwks_cache['keys'])}개 키 로드됨")
+        return _jwks_cache["keys"]
+    except Exception as e:
+        print(f"[JWKS] 가져오기 실패: {e}")
+        return []
+
+def get_signing_key(token: str):
+    """토큰의 kid에 해당하는 공개키 찾기"""
+    from jwt.algorithms import ECAlgorithm
+
+    header = jwt.get_unverified_header(token)
+    kid = header.get("kid")
+
+    jwks_keys = get_jwks()
+    for key in jwks_keys:
+        if key.get("kid") == kid:
+            return ECAlgorithm.from_jwk(json.dumps(key))
+
+    raise HTTPException(status_code=401, detail=f"JWKS에서 키를 찾을 수 없음 (kid={kid})")
+
 def verify_token(authorization: str = None) -> dict:
-    """JWT 토큰을 검증하고 사용자 정보 반환"""
-    print(f"[AUTH DEBUG] authorization: {authorization[:30] if authorization else 'None'}...")
-    print(f"[AUTH DEBUG] JWT_SECRET 길이: {len(SUPABASE_JWT_SECRET) if SUPABASE_JWT_SECRET else 0}")
-    print(f"[AUTH DEBUG] JWT_SECRET 앞 10자: {SUPABASE_JWT_SECRET[:10] if SUPABASE_JWT_SECRET else 'EMPTY'}")
-    
+    """JWT 토큰을 검증하고 사용자 정보 반환 (HS256 + ES256 모두 지원)"""
     if not authorization:
-        print("[AUTH DEBUG] ❌ Authorization 헤더 없음")
         raise HTTPException(status_code=401, detail="Authorization 헤더 없음")
-    
+
     if authorization.startswith("Bearer "):
         token = authorization[7:]
     else:
         token = authorization
-    
-    print(f"[AUTH DEBUG] Token 앞 50자: {token[:50]}")
-    
+
     try:
-        # 먼저 검증 없이 디코딩해서 내용 확인
-        unverified = jwt.decode(token, options={"verify_signature": False})
-        print(f"[AUTH DEBUG] Token payload (unverified): {unverified}")
-        print(f"[AUTH DEBUG] Token aud: {unverified.get('aud')}")
-        print(f"[AUTH DEBUG] Token iss: {unverified.get('iss')}")
-        print(f"[AUTH DEBUG] Token alg from header: {jwt.get_unverified_header(token)}")
-    except Exception as e:
-        print(f"[AUTH DEBUG] Token decode 실패: {e}")
-    
-    try:
-        payload = jwt.decode(
-            token,
-            SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
-            audience="authenticated"
-        )
-        print(f"[AUTH DEBUG] ✅ 검증 성공: {payload.get('email')}")
+        # 토큰 헤더에서 알고리즘 확인
+        header = jwt.get_unverified_header(token)
+        alg = header.get("alg", "HS256")
+
+        if alg == "HS256":
+            # 옛 방식 (Legacy JWT Secret)
+            payload = jwt.decode(
+                token,
+                SUPABASE_JWT_SECRET,
+                algorithms=["HS256"],
+                audience="authenticated"
+            )
+        elif alg == "ES256":
+            # 새 방식 (JWKS 공개키)
+            signing_key = get_signing_key(token)
+            payload = jwt.decode(
+                token,
+                signing_key,
+                algorithms=["ES256"],
+                audience="authenticated"
+            )
+        else:
+            raise HTTPException(status_code=401, detail=f"지원하지 않는 알고리즘: {alg}")
+
         return payload
     except PyJWTError as e:
-        print(f"[AUTH DEBUG] ❌ 검증 실패: {type(e).__name__}: {str(e)}")
+        print(f"[AUTH] 토큰 검증 실패: {type(e).__name__}: {str(e)}")
         raise HTTPException(status_code=401, detail=f"토큰 검증 실패: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[AUTH] 예상치 못한 오류: {type(e).__name__}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"인증 오류: {str(e)}")
 
 def get_user_role(user_id: str) -> str:
     """DB에서 사용자 권한 조회"""
