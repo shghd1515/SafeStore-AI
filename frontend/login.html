@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>로그인 — SafeStore AI</title>
+
+<!-- Supabase JS -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+  :root {
+    --bg: #0E1116;
+    --bg2: #161B22;
+    --card: #1C232E;
+    --border: #2A3340;
+    --text: #E6EDF3;
+    --text2: #9AA4B2;
+    --text3: #6B7480;
+    --primary: #3DD9D6;
+    --primary-dark: #2BC4C1;
+    --danger: #FF3B30;
+    --danger-bg: #2B1517;
+    --success: #22C55E;
+    --success-bg: #0F2419;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  /* 배경 효과 */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at 20% 30%, rgba(61, 217, 214, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(43, 196, 193, 0.05) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 420px;
+  }
+
+  /* 로고 */
+  .brand {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .brand__logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .brand__icon {
+    width: 32px;
+    height: 32px;
+    color: var(--primary);
+  }
+  .brand__name {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+  .brand__tagline {
+    font-size: 13px;
+    color: var(--text2);
+    margin: 0;
+  }
+
+  /* 카드 */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+
+  /* 탭 */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    background: var(--bg);
+    border-radius: 10px;
+    padding: 4px;
+  }
+  .tab {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text2);
+    border-radius: 8px;
+    transition: all 0.15s;
+  }
+  .tab:hover {
+    color: var(--text);
+  }
+  .tab.active {
+    background: var(--card);
+    color: var(--primary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+
+  /* 폼 */
+  .form-group {
+    margin-bottom: 16px;
+  }
+  .form-group label {
+    display: block;
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .form-group input {
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 14px;
+    transition: border-color 0.15s;
+  }
+  .form-group input:focus {
+    outline: none;
+    border-color: var(--primary);
+  }
+  .form-group input::placeholder {
+    color: var(--text3);
+  }
+
+  /* 버튼 */
+  .btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--primary);
+    color: #0E1116;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: all 0.15s;
+  }
+  .btn:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* 알림 */
+  .alert {
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: none;
+    line-height: 1.5;
+    white-space: pre-line;
+  }
+  .alert.show {
+    display: block;
+  }
+  .alert.error {
+    background: var(--danger-bg);
+    color: #FF8B82;
+    border: 1px solid #4A1F1F;
+  }
+  .alert.success {
+    background: var(--success-bg);
+    color: #4ADE80;
+    border: 1px solid #1F3A28;
+  }
+  .alert.info {
+    background: #1A2F3A;
+    color: #7DD3D0;
+    border: 1px solid #2A4A55;
+  }
+
+  /* 도움말 */
+  .help-text {
+    font-size: 12px;
+    color: var(--text3);
+    text-align: center;
+    margin-top: 16px;
+    line-height: 1.6;
+  }
+
+  /* 푸터 */
+  .footer {
+    text-align: center;
+    margin-top: 24px;
+    font-size: 11px;
+    color: var(--text3);
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- 브랜드 -->
+  <div class="brand">
+    <div class="brand__logo">
+      <svg class="brand__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2 L4 6 V12 C4 17 7.5 21 12 22 C16.5 21 20 17 20 12 V6 L12 2 Z"/>
+        <polyline points="7.5 12 10 16 13 10 15 13 17 11"/>
+      </svg>
+      <span class="brand__name">SafeStore AI</span>
+    </div>
+    <p class="brand__tagline">무인매장 통합 안전 · 환경 관리 시스템</p>
+  </div>
+
+  <!-- 카드 -->
+  <div class="card">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('login')" id="tab-login">로그인</div>
+      <div class="tab" onclick="switchTab('signup')" id="tab-signup">회원가입</div>
+    </div>
+
+    <!-- 알림 -->
+    <div id="alert" class="alert"></div>
+
+    <!-- 로그인 폼 -->
+    <div id="form-login">
+      <div class="form-group">
+        <label>이메일</label>
+        <input type="email" id="login-email" placeholder="example@email.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>비밀번호</label>
+        <input type="password" id="login-password" placeholder="비밀번호 입력" autocomplete="current-password"
+               onkeydown="if(event.key==='Enter') login()">
+      </div>
+      <button class="btn" id="btn-login" onclick="login()">로그인</button>
+      <p class="help-text">
+        계정이 없으신가요? 위 <strong>회원가입</strong> 탭을 선택해주세요.
+      </p>
+    </div>
+
+    <!-- 회원가입 폼 -->
+    <div id="form-signup" style="display:none">
+      <div class="form-group">
+        <label>이메일</label>
+        <input type="email" id="signup-email" placeholder="example@email.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>비밀번호 (6자 이상)</label>
+        <input type="password" id="signup-password" placeholder="6자 이상 입력" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label>비밀번호 확인</label>
+        <input type="password" id="signup-password2" placeholder="비밀번호 다시 입력" autocomplete="new-password"
+               onkeydown="if(event.key==='Enter') signup()">
+      </div>
+      <button class="btn" id="btn-signup" onclick="signup()">가입 신청</button>
+      <p class="help-text">
+        ⚠️ 가입 신청 후 <strong>관리자 승인</strong>이 필요합니다.<br>
+        승인 완료 시 로그인 가능합니다.
+      </p>
+    </div>
+  </div>
+
+  <!-- 푸터 -->
+  <div class="footer">
+    © 2026 SafeStore AI · 노홍욱
+  </div>
+</div>
+
+<script>
+// ============================================================
+// Supabase 설정
+// ============================================================
+const SUPABASE_URL  = 'https://qazlmymqkzlgqrptjjxk.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhemxteW1xa3psZ3FycHRqanhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwMjUyNjIsImV4cCI6MjA5MDYwMTI2Mn0.RcjTa9rWImbadoBH56bg3G1Zopwixz4exVCqh1u6D00';
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ============================================================
+// 이미 로그인되어 있으면 권한 체크 후 리다이렉트
+// ============================================================
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    try {
+      const res = await fetch('/api/auth/me', {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
+      const data = await res.json();
+
+      if (data.role === 'pending') {
+        showAlert('⏳ 관리자 승인 대기 중입니다.\n승인 완료 시 로그인 가능합니다.', 'info');
+        await sb.auth.signOut();
+      } else if (data.role === 'user' || data.role === 'admin') {
+        window.location.href = '/';
+      }
+    } catch (e) {
+      console.error('권한 확인 실패:', e);
+    }
+  }
+})();
+
+// ============================================================
+// 탭 전환
+// ============================================================
+function switchTab(name) {
+  document.getElementById('tab-login').classList.toggle('active', name === 'login');
+  document.getElementById('tab-signup').classList.toggle('active', name === 'signup');
+  document.getElementById('form-login').style.display = name === 'login' ? 'block' : 'none';
+  document.getElementById('form-signup').style.display = name === 'signup' ? 'block' : 'none';
+  hideAlert();
+}
+
+// ============================================================
+// 알림 표시
+// ============================================================
+function showAlert(msg, type = 'error') {
+  const el = document.getElementById('alert');
+  el.textContent = msg;
+  el.className = `alert show ${type}`;
+}
+
+function hideAlert() {
+  document.getElementById('alert').className = 'alert';
+}
+
+// ============================================================
+// 로그인
+// ============================================================
+async function login() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+
+  if (!email || !password) {
+    showAlert('이메일과 비밀번호를 입력해주세요.');
+    return;
+  }
+
+  const btn = document.getElementById('btn-login');
+  btn.disabled = true;
+  btn.textContent = '로그인 중...';
+
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      if (error.message.includes('Invalid login credentials')) {
+        showAlert('이메일 또는 비밀번호가 올바르지 않습니다.');
+      } else if (error.message.includes('Email not confirmed')) {
+        showAlert('이메일 인증이 필요합니다. 메일함을 확인해주세요.');
+      } else {
+        showAlert('로그인 실패: ' + error.message);
+      }
+      return;
+    }
+
+    // 권한 확인
+    const res = await fetch('/api/auth/me', {
+      headers: { 'Authorization': `Bearer ${data.session.access_token}` }
+    });
+    const meData = await res.json();
+
+    if (meData.role === 'pending') {
+      showAlert('⏳ 관리자 승인 대기 중입니다.\n승인 완료 시 로그인 가능합니다.', 'info');
+      await sb.auth.signOut();
+      return;
+    }
+
+    if (meData.role !== 'user' && meData.role !== 'admin') {
+      showAlert('로그인 권한이 없습니다. 관리자에게 문의하세요.');
+      await sb.auth.signOut();
+      return;
+    }
+
+    // 접속 로그 기록
+    fetch('/api/auth/log-access', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${data.session.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ action: 'login' })
+    }).catch(() => {});
+
+    showAlert('✅ 로그인 성공! 대시보드로 이동합니다...', 'success');
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 800);
+
+  } catch (e) {
+    console.error(e);
+    showAlert('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '로그인';
+  }
+}
+
+// ============================================================
+// 회원가입
+// ============================================================
+async function signup() {
+  const email = document.getElementById('signup-email').value.trim();
+  const password = document.getElementById('signup-password').value;
+  const password2 = document.getElementById('signup-password2').value;
+
+  if (!email || !password || !password2) {
+    showAlert('모든 항목을 입력해주세요.');
+    return;
+  }
+
+  if (password.length < 6) {
+    showAlert('비밀번호는 6자 이상이어야 합니다.');
+    return;
+  }
+
+  if (password !== password2) {
+    showAlert('비밀번호가 일치하지 않습니다.');
+    return;
+  }
+
+  const btn = document.getElementById('btn-signup');
+  btn.disabled = true;
+  btn.textContent = '가입 신청 중...';
+
+  try {
+    const { data, error } = await sb.auth.signUp({ email, password });
+
+    if (error) {
+      if (error.message.includes('already registered')) {
+        showAlert('이미 가입된 이메일입니다.');
+      } else {
+        showAlert('가입 실패: ' + error.message);
+      }
+      return;
+    }
+
+    showAlert('✅ 가입 신청이 완료되었습니다!\n관리자 승인 후 로그인 가능합니다.', 'success');
+
+    // 폼 초기화
+    document.getElementById('signup-email').value = '';
+    document.getElementById('signup-password').value = '';
+    document.getElementById('signup-password2').value = '';
+
+    // 자동 로그아웃 (가입 후 자동 로그인되는 거 방지)
+    await sb.auth.signOut();
+
+    // 3초 후 로그인 탭으로
+    setTimeout(() => {
+      switchTab('login');
+    }, 3000);
+
+  } catch (e) {
+    console.error(e);
+    showAlert('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '가입 신청';
+  }
+}
+</script>
+
+</body>
+</html>
