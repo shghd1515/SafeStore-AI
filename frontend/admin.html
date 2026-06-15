@@ -3,34 +3,44 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>관리자 페이지</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+<title>관리자 — SafeStore AI</title>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
   :root {
-    --bg: #F7F6F3;
-    --surface: #FFFFFF;
-    --border: #E5E2DA;
-    --text: #1A1916;
-    --text2: #6B6860;
-    --text3: #A39F95;
-    --accent: #2563EB;
-    --accent-light: #EFF6FF;
-    --danger: #DC2626;
-    --danger-bg: #FEF2F2;
-    --good: #16A34A;
-    --good-bg: #F0FDF4;
+    --bg: #0E1116;
+    --bg2: #161B22;
+    --card: #1C232E;
+    --border: #2A3340;
+    --text: #E6EDF3;
+    --text2: #9AA4B2;
+    --text3: #6B7480;
+    --primary: #3DD9D6;
+    --primary-dark: #2BC4C1;
+    --danger: #FF3B30;
+    --danger-bg: #2B1517;
+    --warn: #FFB020;
+    --success: #22C55E;
+    --success-bg: #0F2419;
   }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  * { box-sizing: border-box; }
 
-  header {
-    background: var(--surface);
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+    min-height: 100vh;
+  }
+
+  /* 헤더 */
+  .header {
+    background: var(--bg2);
     border-bottom: 1px solid var(--border);
-    padding: 0 24px;
-    height: 56px;
+    padding: 16px 24px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -38,358 +48,642 @@
     top: 0;
     z-index: 100;
   }
-  .logo { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-  .logo-dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; }
-  .header-right { display: flex; align-items: center; gap: 12px; }
-  .user-email { font-size: 13px; color: var(--text3); }
-
-  .btn-sm {
-    padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 500;
-    cursor: pointer; border: 1px solid var(--border); background: var(--surface);
-    color: var(--text); font-family: 'DM Sans', sans-serif; transition: all 0.15s;
-    text-decoration: none; display: inline-block;
+  .header__brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
-  .btn-sm:hover { background: var(--bg); }
-  .btn-sm.danger { border-color: var(--danger); color: var(--danger); }
-  .btn-sm.primary { background: var(--accent); color: white; border-color: var(--accent); }
-  .btn-sm.primary:hover { opacity: 0.85; }
+  .header__icon {
+    width: 28px;
+    height: 28px;
+    color: var(--primary);
+  }
+  .header__title {
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .header__sub {
+    font-size: 12px;
+    color: var(--text2);
+    margin-left: 8px;
+  }
+  .header__actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .header__user {
+    font-size: 13px;
+    color: var(--text2);
+  }
+  .header__btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .header__btn:hover {
+    background: rgba(61, 217, 214, 0.1);
+    border-color: var(--primary);
+    color: var(--primary);
+  }
 
-  .main { padding: 24px; max-width: 1200px; margin: 0 auto; }
-  .page-title { font-size: 20px; font-weight: 600; margin-bottom: 24px; }
+  /* 컨테이너 */
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+  }
 
-  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
-  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
-  .stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
-  .stat-value { font-size: 28px; font-weight: 300; font-family: 'DM Mono', monospace; letter-spacing: -1px; }
+  /* 섹션 */
+  .section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .section__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .section__title {
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section__badge {
+    background: var(--primary);
+    color: var(--bg);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+  .section__refresh {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .section__refresh:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+  }
 
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-  .card-title { font-size: 13px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 16px; }
+  /* 테이블 */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th {
+    text-align: left;
+    padding: 10px 12px;
+    background: var(--bg);
+    color: var(--text2);
+    font-weight: 500;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  tr:last-child td {
+    border-bottom: none;
+  }
+  tr:hover td {
+    background: rgba(61, 217, 214, 0.03);
+  }
 
-  .table-wrap { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  th { text-align: left; padding: 8px 10px; color: var(--text3); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
-  td { padding: 8px 10px; border-bottom: 1px solid var(--border); font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text2); }
-  tr:last-child td { border-bottom: none; }
-  tr:hover td { background: var(--bg); }
+  /* 역할 배지 */
+  .role-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .role-admin {
+    background: rgba(61, 217, 214, 0.15);
+    color: var(--primary);
+  }
+  .role-user {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text);
+  }
+  .role-pending {
+    background: rgba(255, 176, 32, 0.15);
+    color: var(--warn);
+  }
 
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; background: var(--accent-light); color: var(--accent); }
-  .badge.login  { background: var(--good-bg); color: var(--good); }
-  .badge.logout { background: #FEF9C3; color: #854D0E; }
-  .badge.signup { background: #F5F3FF; color: #7C3AED; }
-  .badge.visit  { background: var(--bg); color: var(--text3); }
+  /* 액션 버튼 */
+  .btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    margin-right: 4px;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .btn:hover { background: rgba(255,255,255,0.05); }
+  .btn-approve {
+    background: var(--success-bg);
+    border-color: rgba(34, 197, 94, 0.3);
+    color: #4ADE80;
+  }
+  .btn-approve:hover {
+    background: var(--success);
+    color: white;
+  }
+  .btn-reject {
+    background: var(--danger-bg);
+    border-color: rgba(255, 59, 48, 0.3);
+    color: #FF8B82;
+  }
+  .btn-reject:hover {
+    background: var(--danger);
+    color: white;
+  }
 
-  .form-row { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 16px; flex-wrap: wrap; }
-  .form-group { flex: 1; min-width: 160px; }
-  .form-group label { display: block; font-size: 11px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-  .form-group input, .form-group select { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); outline: none; }
-  .form-group input:focus, .form-group select:focus { border-color: var(--accent); background: var(--surface); }
+  /* select */
+  .role-select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+  }
 
-  .action-text { max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .empty { text-align: center; color: var(--text3); padding: 20px; }
+  /* 빈 상태 */
+  .empty {
+    text-align: center;
+    color: var(--text3);
+    font-size: 13px;
+    padding: 32px;
+  }
+
+  /* 알림 */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 12px 18px;
+    border-radius: 10px;
+    font-size: 13px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s;
+    pointer-events: none;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .toast.success { border-color: var(--success); color: #4ADE80; }
+  .toast.error { border-color: var(--danger); color: #FF8B82; }
+
+  /* 모바일 */
+  @media (max-width: 640px) {
+    .container { padding: 16px; }
+    .section { padding: 16px; }
+    table { font-size: 12px; }
+    th, td { padding: 8px 6px; }
+    .header__sub { display: none; }
+    .header__user { display: none; }
+  }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="logo"><div class="logo-dot"></div>IoT 환경 대시보드 — 관리자</div>
-  <div class="header-right">
-    <span class="user-email" id="user-email">-</span>
-    <a href="/" class="btn-sm">대시보드</a>
-    <button class="btn-sm danger" onclick="logout()">로그아웃</button>
+<div class="header">
+  <div class="header__brand">
+    <svg class="header__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2 L4 6 V12 C4 17 7.5 21 12 22 C16.5 21 20 17 20 12 V6 L12 2 Z"/>
+      <polyline points="7.5 12 10 16 13 10 15 13 17 11"/>
+    </svg>
+    <span class="header__title">SafeStore AI</span>
+    <span class="header__sub">관리자 페이지</span>
   </div>
-</header>
-
-<div class="main">
-  <div class="page-title">관리자 페이지</div>
-
-  <!-- 통계 -->
-  <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-label">전체 데이터</div>
-      <div class="stat-value" id="total-count">-</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">오늘 수집</div>
-      <div class="stat-value" id="today-count">-</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">이벤트 수</div>
-      <div class="stat-value" id="event-count">-</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">최근 수집</div>
-      <div class="stat-value" style="font-size:16px" id="last-recorded">-</div>
-    </div>
-  </div>
-
-  <!-- 이벤트 수동 기록 -->
-  <div class="card">
-    <div class="card-title">이벤트 수동 기록</div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>이벤트 이름</label>
-        <select id="event-select" onchange="toggleCustom(this.value)">
-          <option value="환기시작">환기시작</option>
-          <option value="환기종료">환기종료</option>
-          <option value="요리시작">요리시작</option>
-          <option value="요리종료">요리종료</option>
-          <option value="청소시작">청소시작</option>
-          <option value="청소종료">청소종료</option>
-          <option value="외출">외출</option>
-          <option value="귀가">귀가</option>
-          <option value="직접입력">직접입력</option>
-        </select>
-      </div>
-      <div class="form-group" id="custom-event-wrap" style="display:none">
-        <label>직접 입력</label>
-        <input type="text" id="custom-event" placeholder="이벤트 이름">
-      </div>
-      <button class="btn-sm primary" onclick="recordEvent()">기록하기</button>
-    </div>
-    <div id="event-result" style="font-size:13px;color:var(--good);display:none">✓ 이벤트가 기록됐습니다.</div>
-  </div>
-
-  <!-- 최근 센서 데이터 -->
-  <div class="card">
-    <div class="card-title">최근 센서 데이터 (최근 20개)</div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>ID</th><th>시각</th><th>온도</th><th>습도</th><th>PM2.5</th><th>PM10</th><th>이벤트</th></tr></thead>
-        <tbody id="data-tbody"><tr><td colspan="7" class="empty">로딩 중...</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- 이벤트 목록 -->
-  <div class="card">
-    <div class="card-title">이벤트 기록 목록</div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>시각</th><th>이벤트</th><th>온도</th><th>습도</th><th>PM2.5</th></tr></thead>
-        <tbody id="events-tbody"><tr><td colspan="5" class="empty">로딩 중...</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- 사용자 접속 로그 -->
-  <div class="card">
-    <div class="card-title">사용자 접속 로그</div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>시각</th><th>이메일</th><th>액션</th><th>User ID</th></tr></thead>
-        <tbody id="user-log-tbody"><tr><td colspan="4" class="empty">로딩 중...</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- AI 자동제어 로그 -->
-  <div class="card">
-    <div class="card-title">AI 자동제어 로그</div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>시각</th><th>온도</th><th>습도</th><th>PM2.5</th><th>목표온도</th><th>목표습도</th><th>조치</th></tr></thead>
-        <tbody id="control-log-tbody"><tr><td colspan="7" class="empty">로딩 중...</td></tr></tbody>
-      </table>
-    </div>
+  <div class="header__actions">
+    <span class="header__user" id="currentUser">--</span>
+    <a class="header__btn" href="/">대시보드</a>
+    <button class="header__btn" onclick="logout()">로그아웃</button>
   </div>
 </div>
 
-<!-- 알림 히스토리 -->
-  <div class="card">
-    <div class="card-title">알림 히스토리 (최근 50개)</div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>시각</th>
-            <th>유형</th>
-            <th>측정값</th>
-            <th>임계값</th>
-            <th>메시지</th>
-          </tr>
-        </thead>
-        <tbody id="alerts-tbody">
-          <tr><td colspan="5" class="empty">로딩 중...</td></tr>
-        </tbody>
-      </table>
+<div class="container">
+
+  <!-- 가입 신청 대기 -->
+  <div class="section">
+    <div class="section__head">
+      <div class="section__title">
+        가입 신청 대기
+        <span class="section__badge" id="pendingCount">0</span>
+      </div>
+      <button class="section__refresh" onclick="loadPending()">새로고침</button>
     </div>
+    <table>
+      <thead>
+        <tr>
+          <th>이메일</th>
+          <th>신청 시각</th>
+          <th>작업</th>
+        </tr>
+      </thead>
+      <tbody id="pendingTbody">
+        <tr><td colspan="3" class="empty">불러오는 중...</td></tr>
+      </tbody>
+    </table>
   </div>
 
+  <!-- 전체 사용자 -->
+  <div class="section">
+    <div class="section__head">
+      <div class="section__title">
+        전체 사용자
+        <span class="section__badge" id="usersCount">0</span>
+      </div>
+      <button class="section__refresh" onclick="loadUsers()">새로고침</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>이메일</th>
+          <th>권한</th>
+          <th>가입일</th>
+          <th>승인일</th>
+          <th>작업</th>
+        </tr>
+      </thead>
+      <tbody id="usersTbody">
+        <tr><td colspan="5" class="empty">불러오는 중...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 접속 로그 -->
+  <div class="section">
+    <div class="section__head">
+      <div class="section__title">
+        최근 접속 로그
+        <span class="section__badge" id="logsCount">0</span>
+      </div>
+      <button class="section__refresh" onclick="loadLogs()">새로고침</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>이메일</th>
+          <th>액션</th>
+          <th>IP</th>
+          <th>시각</th>
+        </tr>
+      </thead>
+      <tbody id="logsTbody">
+        <tr><td colspan="4" class="empty">불러오는 중...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- 토스트 -->
+<div id="toast" class="toast"></div>
+
 <script>
+// ============================================================
+// 설정
+// ============================================================
 const SUPABASE_URL  = 'https://qazlmymqkzlgqrptjjxk.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhemxteW1xa3psZ3FycHRqanhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwMjUyNjIsImV4cCI6MjA5MDYwMTI2Mn0.RcjTa9rWImbadoBH56bg3G1Zopwixz4exVCqh1u6D00';
-const API = 'https://iot-environment-dashboard.onrender.com';
+
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-sb.auth.getSession().then(({ data }) => {
-  if (!data.session) { window.location.href = '/login'; return; }
-  document.getElementById('user-email').textContent = data.session.user.email;
-  recordUserLog(data.session.user, 'page_visit');
-  loadAll();
-});
+let accessToken = null;
 
+// ============================================================
+// 인증 체크 (admin만 접근 가능)
+// ============================================================
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) {
+    window.location.href = '/login';
+    return;
+  }
+
+  accessToken = session.access_token;
+
+  try {
+    const res = await fetch('/api/auth/me', {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+
+    if (!res.ok) {
+      await sb.auth.signOut();
+      window.location.href = '/login';
+      return;
+    }
+
+    const me = await res.json();
+
+    if (me.role !== 'admin') {
+      alert('관리자 권한이 필요합니다.');
+      window.location.href = '/';
+      return;
+    }
+
+    document.getElementById('currentUser').textContent = `👤 ${me.email}`;
+
+    // 모든 데이터 로드
+    loadPending();
+    loadUsers();
+    loadLogs();
+
+  } catch (e) {
+    console.error(e);
+    window.location.href = '/login';
+  }
+})();
+
+// ============================================================
+// 가입 신청자 목록
+// ============================================================
+async function loadPending() {
+  const tbody = document.getElementById('pendingTbody');
+  tbody.innerHTML = '<tr><td colspan="3" class="empty">불러오는 중...</td></tr>';
+
+  try {
+    const res = await fetch('/api/admin/pending-users', {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    const data = await res.json();
+
+    document.getElementById('pendingCount').textContent = data.count || 0;
+
+    if (!data.users || data.users.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" class="empty">가입 신청자가 없습니다.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.users.map(u => `
+      <tr>
+        <td>${escapeHtml(u.email)}</td>
+        <td>${formatDate(u.created_at)}</td>
+        <td>
+          <button class="btn btn-approve" onclick="approveUser('${u.id}', '${escapeHtml(u.email)}')">승인</button>
+          <button class="btn btn-reject" onclick="rejectUser('${u.id}', '${escapeHtml(u.email)}')">거부</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="3" class="empty">오류: ' + e.message + '</td></tr>';
+  }
+}
+
+// ============================================================
+// 전체 사용자 목록
+// ============================================================
+async function loadUsers() {
+  const tbody = document.getElementById('usersTbody');
+  tbody.innerHTML = '<tr><td colspan="5" class="empty">불러오는 중...</td></tr>';
+
+  try {
+    const res = await fetch('/api/admin/users', {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    const data = await res.json();
+
+    document.getElementById('usersCount').textContent = data.count || 0;
+
+    if (!data.users || data.users.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">사용자가 없습니다.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.users.map(u => `
+      <tr>
+        <td>${escapeHtml(u.email)}</td>
+        <td><span class="role-badge role-${u.role}">${roleLabel(u.role)}</span></td>
+        <td>${formatDate(u.created_at)}</td>
+        <td>${u.approved_at ? formatDate(u.approved_at) : '-'}</td>
+        <td>
+          <select class="role-select" onchange="changeRole('${u.id}', this.value, '${escapeHtml(u.email)}')">
+            <option value="">변경...</option>
+            <option value="user">일반 사용자</option>
+            <option value="admin">관리자</option>
+            <option value="pending">대기</option>
+          </select>
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">오류: ' + e.message + '</td></tr>';
+  }
+}
+
+// ============================================================
+// 접속 로그
+// ============================================================
+async function loadLogs() {
+  const tbody = document.getElementById('logsTbody');
+  tbody.innerHTML = '<tr><td colspan="4" class="empty">불러오는 중...</td></tr>';
+
+  try {
+    const res = await fetch('/api/admin/access-logs?limit=50', {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    const data = await res.json();
+
+    document.getElementById('logsCount').textContent = data.count || 0;
+
+    if (!data.logs || data.logs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty">로그가 없습니다.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.logs.map(l => `
+      <tr>
+        <td>${escapeHtml(l.email || '-')}</td>
+        <td><span class="role-badge role-user">${escapeHtml(l.action)}</span></td>
+        <td>${escapeHtml(l.ip_address || '-')}</td>
+        <td>${formatDate(l.created_at)}</td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty">오류: ' + e.message + '</td></tr>';
+  }
+}
+
+// ============================================================
+// 승인 / 거부
+// ============================================================
+async function approveUser(id, email) {
+  if (!confirm(`${email}을(를) 승인하시겠습니까?`)) return;
+
+  try {
+    const res = await fetch(`/api/admin/approve-user/${id}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      showToast('승인 완료', 'success');
+      loadPending();
+      loadUsers();
+    } else {
+      showToast('승인 실패: ' + (data.detail || data.message), 'error');
+    }
+  } catch (e) {
+    showToast('오류: ' + e.message, 'error');
+  }
+}
+
+async function rejectUser(id, email) {
+  if (!confirm(`${email}을(를) 거부하시겠습니까?\n계정이 삭제됩니다.`)) return;
+
+  try {
+    const res = await fetch(`/api/admin/reject-user/${id}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      showToast('거부 완료', 'success');
+      loadPending();
+      loadUsers();
+    } else {
+      showToast('거부 실패: ' + (data.detail || data.message), 'error');
+    }
+  } catch (e) {
+    showToast('오류: ' + e.message, 'error');
+  }
+}
+
+// ============================================================
+// 권한 변경
+// ============================================================
+async function changeRole(id, newRole, email) {
+  if (!newRole) return;
+
+  if (!confirm(`${email}의 권한을 "${roleLabel(newRole)}"으로 변경하시겠습니까?`)) {
+    loadUsers();  // 셀렉트 초기화
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/admin/change-role/${id}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ role: newRole })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      showToast('권한 변경 완료', 'success');
+      loadUsers();
+    } else {
+      showToast('변경 실패: ' + (data.detail || data.message), 'error');
+      loadUsers();
+    }
+  } catch (e) {
+    showToast('오류: ' + e.message, 'error');
+    loadUsers();
+  }
+}
+
+// ============================================================
+// 로그아웃
+// ============================================================
 async function logout() {
-  const { data } = await sb.auth.getSession();
-  if (data.session) await recordUserLog(data.session.user, 'logout');
+  if (!confirm('로그아웃하시겠습니까?')) return;
+
+  fetch('/api/auth/log-access', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ action: 'logout' })
+  }).catch(() => {});
+
   await sb.auth.signOut();
   window.location.href = '/login';
 }
 
-async function recordUserLog(user, action) {
-  try {
-    await sb.from('auth_logs').insert({ email: user.email, user_id: user.id, action });
-  } catch(e) {}
+// ============================================================
+// 유틸
+// ============================================================
+function formatDate(iso) {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
 }
 
-function toggleCustom(val) {
-  document.getElementById('custom-event-wrap').style.display = val === '직접입력' ? 'block' : 'none';
+function roleLabel(role) {
+  return { admin: '관리자', user: '사용자', pending: '대기' }[role] || role;
 }
 
-async function recordEvent() {
-  const select = document.getElementById('event-select').value;
-  const custom = document.getElementById('custom-event').value.trim();
-  const eventName = select === '직접입력' ? custom : select;
-  if (!eventName) { alert('이벤트 이름을 입력해주세요.'); return; }
-  try {
-    await fetch(`${API}/event`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ event_name: eventName })
-    });
-    const el = document.getElementById('event-result');
-    el.style.display = 'block';
-    setTimeout(() => { el.style.display = 'none'; loadAll(); }, 2000);
-  } catch(e) { alert('이벤트 기록 실패: ' + e.message); }
+function escapeHtml(s) {
+  if (!s) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
-async function loadAll() {
-  await Promise.all([
-    loadStats(),
-    loadData(),
-    loadEvents(),
-    loadUserLogs(),
-    loadControlLogs(),
-    loadAlerts(),
-  ]);
+function showToast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast show ${type}`;
+  setTimeout(() => {
+    el.className = 'toast';
+  }, 3000);
 }
-
-async function loadAlerts() {
-  const tbody = document.getElementById('alerts-tbody');
-  try {
-    const res  = await fetch(`${API}/alerts`);
-    const logs = await res.json();
-    if (!logs?.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="empty">알림 없음</td></tr>';
-      return;
-    }
-    const typeIcon = {
-      '미세먼지': '🚨',
-      '온도높음':  '🌡️',
-      '온도낮음':  '🥶',
-      '습도높음':  '💧',
-      '습도낮음':  '🏜️',
-    };
-    tbody.innerHTML = logs.map(r => `
-      <tr>
-        <td>${(r.created_at||'').slice(0,16)}</td>
-        <td>${typeIcon[r.alert_type] || ''} ${r.alert_type}</td>
-        <td>${r.value ?? '-'}</td>
-        <td>${r.threshold ?? '-'}</td>
-        <td>${r.message || '-'}</td>
-      </tr>`).join('');
-  } catch(e) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty">오류 발생</td></tr>';
-  }
-}
-
-async function loadStats() {
-  try {
-    const res = await fetch(`${API}/status`);
-    const d   = await res.json();
-    document.getElementById('last-recorded').textContent = (d.current?.recorded_at||'-').slice(11,16);
-  } catch(e) {}
-  try {
-    const { count } = await sb.from('sensor_combined').select('*', { count:'exact', head:true });
-    document.getElementById('total-count').textContent = (count??'-').toLocaleString();
-  } catch(e) {}
-  try {
-    const today = new Date().toISOString().slice(0,10);
-    const { count } = await sb.from('sensor_combined').select('*', { count:'exact', head:true }).gte('recorded_at', today);
-    document.getElementById('today-count').textContent = (count??'-').toLocaleString();
-  } catch(e) {}
-  try {
-    const { count } = await sb.from('sensor_combined').select('*', { count:'exact', head:true }).not('event','is',null);
-    document.getElementById('event-count').textContent = (count??'-').toLocaleString();
-  } catch(e) {}
-}
-
-async function loadData() {
-  const tbody = document.getElementById('data-tbody');
-  try {
-    const { data } = await sb.from('sensor_combined').select('*').order('recorded_at', { ascending:false }).limit(20);
-    if (!data?.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">데이터 없음</td></tr>'; return; }
-    tbody.innerHTML = data.map(r => `
-      <tr>
-        <td>${r.id}</td><td>${(r.recorded_at||'').slice(0,16)}</td>
-        <td>${r.temperature??'-'}°C</td><td>${r.humidity??'-'}%</td>
-        <td>${r.pm25??'-'}</td><td>${r.pm10??'-'}</td>
-        <td>${r.event?`<span class="badge">${r.event}</span>`:'-'}</td>
-      </tr>`).join('');
-  } catch(e) { tbody.innerHTML = '<tr><td colspan="7" class="empty">오류 발생</td></tr>'; }
-}
-
-async function loadEvents() {
-  const tbody = document.getElementById('events-tbody');
-  try {
-    const { data } = await sb.from('sensor_combined').select('*').not('event','is',null).order('recorded_at', { ascending:false }).limit(20);
-    if (!data?.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">이벤트 없음</td></tr>'; return; }
-    tbody.innerHTML = data.map(r => `
-      <tr>
-        <td>${(r.recorded_at||'').slice(0,16)}</td>
-        <td><span class="badge">${r.event}</span></td>
-        <td>${r.temperature??'-'}°C</td><td>${r.humidity??'-'}%</td><td>${r.pm25??'-'}</td>
-      </tr>`).join('');
-  } catch(e) { tbody.innerHTML = '<tr><td colspan="5" class="empty">오류 발생</td></tr>'; }
-}
-
-async function loadUserLogs() {
-  const tbody = document.getElementById('user-log-tbody');
-  try {
-    const { data } = await sb.from('auth_logs').select('*').order('created_at', { ascending:false }).limit(30);
-    if (!data?.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty">로그 없음 (Supabase SQL Editor에서 auth_logs 테이블 생성 필요)</td></tr>'; return; }
-    const actionLabel = {
-      'login':      '<span class="badge login">로그인</span>',
-      'logout':     '<span class="badge logout">로그아웃</span>',
-      'signup':     '<span class="badge signup">회원가입</span>',
-      'page_visit': '<span class="badge visit">페이지 방문</span>',
-    };
-    tbody.innerHTML = data.map(r => `
-      <tr>
-        <td>${(r.created_at||'').slice(0,16)}</td>
-        <td>${r.email||'-'}</td>
-        <td>${actionLabel[r.action]||`<span class="badge">${r.action}</span>`}</td>
-        <td style="font-size:10px;color:var(--text3)">${(r.user_id||'').slice(0,8)}...</td>
-      </tr>`).join('');
-  } catch(e) { tbody.innerHTML = '<tr><td colspan="4" class="empty">auth_logs 테이블을 생성해주세요</td></tr>'; }
-}
-
-async function loadControlLogs() {
-  const tbody = document.getElementById('control-log-tbody');
-  try {
-    const res  = await fetch(`${API}/chat/logs`);
-    const logs = await res.json();
-    if (!logs?.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">로그 없음</td></tr>'; return; }
-    tbody.innerHTML = logs.map(r => `
-      <tr>
-        <td>${(r.logged_at||'').slice(0,16)}</td>
-        <td>${r.current_temp??'-'}°C</td><td>${r.current_humi??'-'}%</td><td>${r.current_pm25??'-'}</td>
-        <td>${r.target_temp??'-'}°C</td><td>${r.target_humi??'-'}%</td>
-        <td class="action-text" title="${r.action||''}">${r.action||'-'}</td>
-      </tr>`).join('');
-  } catch(e) { tbody.innerHTML = '<tr><td colspan="7" class="empty">오류 발생</td></tr>'; }
-}
-
-setInterval(loadAll, 30000);
 </script>
+
 </body>
 </html>
