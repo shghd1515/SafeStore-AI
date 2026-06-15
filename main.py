@@ -21,8 +21,10 @@ import numpy as np
 import requests
 from datetime import datetime
 from contextlib import asynccontextmanager
+import jwt
 
-from fastapi import FastAPI, BackgroundTasks, HTTPException
+from jwt import PyJWTError
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -33,15 +35,10 @@ from sqlalchemy import create_engine, text
 from apscheduler.schedulers.background import BackgroundScheduler
 
 # vision 패키지 import
-try:
-    from vision import stream_proxy
-    HAS_STREAM_PROXY = True
-    # 서버 시작 시 백그라운드 영상 수신 시작
-    stream_proxy.start_proxy()
-    print("[main] 영상 프록시 시작됨")
-except ImportError as e:
-    HAS_STREAM_PROXY = False
-    print(f"[main] 영상 프록시 import 실패: {e}")
+# stream_proxy는 cloudflared로 영상 받으므로 비활성화
+# 노트북에서 라파이 직접 연결 + YOLO 추론할 때만 다시 켜기
+HAS_STREAM_PROXY = False
+print("[main] 영상 프록시 비활성화 (cloudflared 사용)")
 
 # 챗봇 라우터 임포트
 from chatbot import router as chatbot_router
@@ -327,6 +324,64 @@ class PredictRequest(BaseModel):
 
 class EventRequest(BaseModel):
     event_name: str
+
+# ── 인증 헬퍼 ──────────────────────────────────────────────────────────────
+SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "")
+
+def verify_token(authorization: str = None) -> dict:
+    """JWT 토큰을 검증하고 사용자 정보 반환"""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authorization 헤더 없음")
+    
+    # "Bearer xxxxx" 형식에서 토큰만 추출
+    if authorization.startswith("Bearer "):
+        token = authorization[7:]
+    else:
+        token = authorization
+    
+    try:
+        payload = jwt.decode(
+            token,
+            SUPABASE_JWT_SECRET,
+            algorithms=["HS256"],
+            audience="authenticated"
+        )
+        return payload  # {"sub": user_id, "email": "...", ...}
+    except PyJWTError as e:
+        raise HTTPException(status_code=401, detail=f"토큰 검증 실패: {str(e)}")
+
+def get_user_role(user_id: str) -> str:
+    """DB에서 사용자 권한 조회"""
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("SELECT role FROM user_profiles WHERE id = :id"),
+                {"id": user_id}
+            ).fetchone()
+            return result[0] if result else "pending"
+    except Exception as e:
+        print(f"[권한 조회 오류] {e}")
+        return "pending"
+
+def require_admin(authorization: str):
+    """관리자 권한 필수 (관리자 아니면 403)"""
+    payload = verify_token(authorization)
+    user_id = payload.get("sub")
+    role = get_user_role(user_id)
+    if role != "admin":
+        raise HTTPException(status_code=403, detail="관리자 권한 필요")
+    return payload
+
+def require_user(authorization: str):
+    """일반 사용자 이상 권한 필수 (pending 아니면 통과)"""
+    payload = verify_token(authorization)
+    user_id = payload.get("sub")
+    role = get_user_role(user_id)
+    if role == "pending":
+        raise HTTPException(status_code=403, detail="관리자 승인 대기 중")
+    if role not in ("user", "admin"):
+        raise HTTPException(status_code=403, detail="권한 없음")
+    return payload
 
 
 # ── 엔드포인트 ────────────────────────────────────────────────────────────────
@@ -1134,3 +1189,198 @@ def video_status():
         "pi_host": stream_proxy.PI_HOST,
         "pi_port": stream_proxy.PI_PORT,
     }
+
+# ============================================================
+# 사용자 인증 / 관리 API
+# ============================================================
+
+@app.get("/api/auth/me", summary="내 정보 + 권한 확인")
+def get_my_info(authorization: str = Header(None)):
+    """로그인한 사용자의 정보와 권한 반환"""
+    payload = verify_token(authorization)
+    user_id = payload.get("sub")
+    email = payload.get("email")
+    role = get_user_role(user_id)
+    
+    return {
+        "id": user_id,
+        "email": email,
+        "role": role,
+        "is_authenticated": True
+    }
+
+@app.get("/api/admin/pending-users", summary="가입 신청자 목록 (관리자 전용)")
+def list_pending_users(authorization: str = Header(None)):
+    """승인 대기 중인 사용자 목록"""
+    require_admin(authorization)
+    
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text(
+                "SELECT id, email, created_at, display_name "
+                "FROM user_profiles "
+                "WHERE role = 'pending' "
+                "ORDER BY created_at DESC"
+            )).fetchall()
+        
+        users = [
+            {
+                "id": str(row[0]),
+                "email": row[1],
+                "created_at": row[2].isoformat() if row[2] else None,
+                "display_name": row[3]
+            }
+            for row in result
+        ]
+        return {"count": len(users), "users": users}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"DB 오류: {str(e)}")
+
+@app.get("/api/admin/users", summary="전체 사용자 목록 (관리자 전용)")
+def list_all_users(authorization: str = Header(None)):
+    """전체 사용자 목록 (권한 포함)"""
+    require_admin(authorization)
+    
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text(
+                "SELECT id, email, role, display_name, created_at, approved_at "
+                "FROM user_profiles "
+                "ORDER BY created_at DESC"
+            )).fetchall()
+        
+        users = [
+            {
+                "id": str(row[0]),
+                "email": row[1],
+                "role": row[2],
+                "display_name": row[3],
+                "created_at": row[4].isoformat() if row[4] else None,
+                "approved_at": row[5].isoformat() if row[5] else None
+            }
+            for row in result
+        ]
+        return {"count": len(users), "users": users}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"DB 오류: {str(e)}")
+
+@app.post("/api/admin/approve-user/{user_id}", summary="사용자 승인 (관리자 전용)")
+def approve_user(user_id: str, authorization: str = Header(None)):
+    """가입 신청자를 일반 사용자로 승인"""
+    payload = require_admin(authorization)
+    admin_id = payload.get("sub")
+    
+    try:
+        with engine.connect() as conn:
+            conn.execute(text(
+                "UPDATE user_profiles "
+                "SET role = 'user', approved_at = NOW(), approved_by = :admin_id "
+                "WHERE id = :user_id AND role = 'pending'"
+            ), {"user_id": user_id, "admin_id": admin_id})
+            conn.commit()
+        return {"success": True, "message": "사용자 승인 완료"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"DB 오류: {str(e)}")
+
+@app.post("/api/admin/reject-user/{user_id}", summary="사용자 거부 (관리자 전용)")
+def reject_user(user_id: str, authorization: str = Header(None)):
+    """가입 신청자 삭제"""
+    require_admin(authorization)
+    
+    try:
+        with engine.connect() as conn:
+            conn.execute(text(
+                "DELETE FROM user_profiles WHERE id = :id AND role = 'pending'"
+            ), {"id": user_id})
+            conn.commit()
+        return {"success": True, "message": "가입 거부 완료"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"DB 오류: {str(e)}")
+
+@app.post("/api/admin/change-role/{user_id}", summary="사용자 권한 변경 (관리자 전용)")
+def change_user_role(user_id: str, request: Request, authorization: str = Header(None)):
+    """사용자 권한 변경 (user ↔ admin)"""
+    require_admin(authorization)
+    
+    body = {}
+    try:
+        import asyncio
+        body = asyncio.run(request.json())
+    except:
+        pass
+    
+    new_role = body.get("role", "user")
+    if new_role not in ("user", "admin", "pending"):
+        raise HTTPException(status_code=400, detail="role은 user/admin/pending 중 하나")
+    
+    try:
+        with engine.connect() as conn:
+            conn.execute(text(
+                "UPDATE user_profiles SET role = :role WHERE id = :id"
+            ), {"role": new_role, "id": user_id})
+            conn.commit()
+        return {"success": True, "message": f"권한 변경 완료: {new_role}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"DB 오류: {str(e)}")
+
+@app.post("/api/auth/log-access", summary="접속 로그 기록")
+def log_access(request: Request, authorization: str = Header(None)):
+    """사용자 접속 로그 (로그인/로그아웃)"""
+    try:
+        payload = verify_token(authorization)
+        user_id = payload.get("sub")
+        email = payload.get("email")
+        
+        # 클라이언트가 보낸 action 받기
+        import asyncio
+        body = asyncio.run(request.json())
+        action = body.get("action", "login")
+        
+        # IP 주소
+        client_ip = request.client.host if request.client else "unknown"
+        user_agent = request.headers.get("user-agent", "")[:200]
+        
+        with engine.connect() as conn:
+            conn.execute(text(
+                "INSERT INTO user_access_logs (user_id, email, action, ip_address, user_agent) "
+                "VALUES (:uid, :email, :action, :ip, :ua)"
+            ), {
+                "uid": user_id,
+                "email": email,
+                "action": action,
+                "ip": client_ip,
+                "ua": user_agent
+            })
+            conn.commit()
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/api/admin/access-logs", summary="접속 로그 조회 (관리자 전용)")
+def get_access_logs(limit: int = 100, authorization: str = Header(None)):
+    """접속 로그 최근 N개"""
+    require_admin(authorization)
+    
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text(
+                "SELECT id, user_id, email, action, ip_address, created_at "
+                "FROM user_access_logs "
+                "ORDER BY created_at DESC "
+                "LIMIT :limit"
+            ), {"limit": limit}).fetchall()
+        
+        logs = [
+            {
+                "id": row[0],
+                "user_id": str(row[1]) if row[1] else None,
+                "email": row[2],
+                "action": row[3],
+                "ip_address": row[4],
+                "created_at": row[5].isoformat() if row[5] else None
+            }
+            for row in result
+        ]
+        return {"count": len(logs), "logs": logs}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"DB 오류: {str(e)}")
