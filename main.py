@@ -1242,16 +1242,13 @@ def video_stream():
     )
 
 
-@app.get("/video-status", summary="CCTV 연결 상태", tags=["보안"])
+@app.get("/video-status", summary="CCTV 영상 송출 상태")
 def video_status():
-    """대시보드에서 연결 상태 확인용."""
-    if not HAS_STREAM_PROXY:
-        return {"available": False, "connected": False, "reason": "모듈 없음"}
+    """Cloudflare Tunnel을 통해 직접 송출하므로 항상 available"""
     return {
         "available": True,
-        "connected": stream_proxy.is_connected(),
-        "pi_host": stream_proxy.PI_HOST,
-        "pi_port": stream_proxy.PI_PORT,
+        "mode": "cloudflare",
+        "message": "Cloudflare Tunnel을 통해 외부에서 직접 접속"
     }
 
 # ============================================================
