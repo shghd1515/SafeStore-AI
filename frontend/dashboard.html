@@ -1160,7 +1160,6 @@ body::after {
 
   <div class="nav__menu">
     <a class="nav__link" href="#hero">홈</a>
-    <a class="nav__link" href="#dashboard">대시보드</a>
     <a class="nav__link" href="#outdoor">외부환경</a>
     <a class="nav__link" href="#indoor">실내환경</a>
     <a class="nav__link" href="#security">보안</a>
@@ -1278,8 +1277,8 @@ body::after {
         </div>
       </div>
 
-      <a class="scroll-indicator" href="#dashboard">
-        실시간 대시보드 보기
+      <a class="scroll-indicator" href="#outdoor">
+        실시간 환경 데이터 보기
         <span class="scroll-indicator__arrow">↓</span>
       </a>
     </div>
@@ -1450,21 +1449,10 @@ body::after {
 </section>
 
 <!-- ============================================================
-     실시간 대시보드 진입
-============================================================ -->
-<section class="dashboard-section reveal" id="dashboard">
-  <div class="section-header">
-    <span class="section-tag">● LIVE</span>
-  </div>
-  <h2 class="section-title">실시간 통합 관제</h2>
-  <p class="section-desc">무인매장1 — 마지막 업데이트 <span id="lastUpdate">--:--:--</span></p>
-</section>
-
-<!-- ============================================================
      외부환경 비교 + 건강지수
 ============================================================ -->
-<section class="dashboard-section reveal" id="outdoor">
-  <div class="section-header">
+<div id="dashboard"></div>
+<section class="dashboard-section reveal" id="outdoor">  <div class="section-header">
     <span class="section-tag">🌤 OUTDOOR</span>
   </div>
   <h2 class="section-title">외부 환경</h2>
@@ -1768,8 +1756,10 @@ document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 /* ── CCTV 시계 ───────────────────────────────────────── */
 function tickClock() {
   const t = new Date().toTimeString().slice(0, 8);
-  document.getElementById('cctvTime').textContent = t;
-  document.getElementById('lastUpdate').textContent = t;
+  const cctvEl = document.getElementById('cctvTime');
+  if (cctvEl) cctvEl.textContent = t;
+  const lastEl = document.getElementById('lastUpdate');
+  if (lastEl) lastEl.textContent = t;
 }
 setInterval(tickClock, 1000); tickClock();
 
