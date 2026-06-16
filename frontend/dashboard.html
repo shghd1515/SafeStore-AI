@@ -1985,6 +1985,7 @@ function renderEvents(events) {
   log.innerHTML = events.map(e => {
     const meta = EVENT_META[e.event_type] || { name: e.event_type, cls: '', icon: '●' };
     const time = new Date(e.detected_at).toLocaleString('ko-KR', {
+      timeZone: 'Asia/Seoul',
       month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
     });
     const conf = e.confidence ? (e.confidence * 100).toFixed(0) + '%' : '--';
