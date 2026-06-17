@@ -322,10 +322,11 @@ def build_context() -> str:
 {anomaly_text}
 
 ### 감지 가능한 이상행동
-- 화재(fire): YOLO-Pose + YOLOv8 화재 감지 모델
-- 쓰러짐(fall): YOLO-Pose 자세 분석
+- 화재(fire): YOLO-Pose + YOLOv8 화재 감지 모델 (정확도 95%)
+- 쓰러짐(fall): YOLO-Pose 자세 분석 (정확도 90%)
 - 장시간 체류(loitering): 동일 위치 60초 이상
-- 폭행/싸움(violence): YOLO-Pose 기반 휴리스틱 (예정)
+- 비영업시간 침입(intrusion): 22시~06시 사람 감지
+- 폭행/싸움(violence): YOLO-Pose 기반 휴리스틱 (베타 단계)
 
 ## AI 자동제어 시스템 정보
 - 매일 오후 2시 15분 환기 알람 자동 실행

@@ -958,6 +958,8 @@ body::after {
 .chip--off { color: var(--text-3); }
 .chip--alert .chip__dot { background: var(--danger); box-shadow: 0 0 8px var(--danger); animation: blink 1s infinite; }
 .chip--alert { color: var(--danger); border-color: var(--danger); }
+.chip--beta .chip__dot { background: #ffc107; box-shadow: 0 0 8px #ffc107; }
+.chip--beta { color: #ffc107; border-color: rgba(255, 193, 7, 0.4); }
 
 /* 이벤트 로그 */
 .event-log {
@@ -1630,11 +1632,12 @@ body::after {
 
       <!-- 멀티모델 칩 -->
       <div class="model-chips">
-        <span class="chip"><span class="chip__dot"></span>YOLO-Pose (쓰러짐)</span>
-        <span class="chip"><span class="chip__dot"></span>YOLO-Pose (배회)</span>
-        <span class="chip"><span class="chip__dot"></span>화재 감지</span>
-        <span class="chip chip--off"><span class="chip__dot"></span>폭행 감지 (학습중)</span>
-        <span class="chip chip--off"><span class="chip__dot"></span>침입 감지 (학습중)</span>
+          <span class="chip"><span class="chip__dot"></span>YOLO-Pose (쓰러짐)</span>
+          <span class="chip"><span class="chip__dot"></span>YOLO-Pose (배회)</span>
+          <span class="chip"><span class="chip__dot"></span>화재/연기 감지</span>
+          <span class="chip"><span class="chip__dot"></span>비영업시간 침입</span>
+          <span class="chip chip--beta"><span class="chip__dot"></span>폭행 감지 (베타)</span>
+          <span class="chip"><span class="chip__dot"></span>AI 어시스턴트 (GPT-4o-mini)</span>
       </div>
     </div>
 

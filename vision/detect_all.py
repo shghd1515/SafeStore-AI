@@ -23,6 +23,7 @@ from dotenv import load_dotenv
 from vision.stream_reader import MJPEGStream
 from vision.detectors.pose import PoseDetector
 from vision.detectors.fire import FireDetector
+from vision.detectors.anomaly import AnomalyDetector  # ← 추가
 from vision.anomaly_uploader import push_event
 
 load_dotenv()
@@ -38,7 +39,7 @@ class SafeStoreDetector:
         # 감지 모듈들 (나중에 fire, violence 추가)
         self.pose: Optional[PoseDetector] = None
         self.fire: Optional[FireDetector] = None        # Day 1 후반
-        # self.violence: Optional[ViolenceDetector] = None # Day 2
+        self.anomaly: Optional[AnomalyDetector] = None  # ← 추가
         
         self.running = False
         self.frame_count = 0
@@ -50,6 +51,7 @@ class SafeStoreDetector:
             "loiter_count": 0,
             "fire_count": 0,
             "violence_count": 0,
+            "intrusion_count": 0,
         }
     
     def setup(self):
@@ -59,11 +61,11 @@ class SafeStoreDetector:
         print("=" * 60)
         
         # 1. 영상 스트림
-        print("\n[1/3] 영상 스트림 연결...")
+        print("\n[1/4] 영상 스트림 연결...")
         self.stream = MJPEGStream(self.cctv_url)
         
         # 2. YOLO-Pose
-        print("\n[2/3] YOLO-Pose 로드...")
+        print("\n[2/4] YOLO-Pose 로드...")
         self.pose = PoseDetector(
             angle_th=20.0,
             fall_hold_sec=10.0,      # 실전: 5초
@@ -73,12 +75,23 @@ class SafeStoreDetector:
         )
         
         # 3. 화재 감지
-        print("\n[3/3] 화재 감지 로드...")
+        print("\n[3/4] 화재 감지 로드...")
         self.fire = FireDetector(
             model_path="models/fire_detection/best.pt",
             confidence_threshold=0.5,
             hit_threshold=3,
             hold_sec=2.0,
+            cooldown_sec=60.0,
+            verbose=False,
+        )
+
+        # 4. 종합 이상행동 감지
+        print("\n[4/4] 종합 이상행동 감지 로드...")
+        self.anomaly = AnomalyDetector(
+            violence_distance=120.0,
+            violence_hold_sec=1.5,
+            intrusion_start_hour=22,    # 22시~06시 비영업
+            intrusion_end_hour=6,
             cooldown_sec=60.0,
             verbose=False,
         )
@@ -95,7 +108,19 @@ class SafeStoreDetector:
                 confidence=details.get("confidence", 0.8),
                 cooldown=30,
             )
-            self.stats[f"{event_type}_count" if event_type != "loitering" else "loiter_count"] += 1
+            # 통계 키 매핑
+            stat_key_map = {
+                "fall": "fall_count",
+                "loitering": "loiter_count",
+                "fire": "fire_count",
+                "violence": "violence_count",
+                "running": "running_count",
+                "crowding": "crowding_count",
+                "intrusion": "intrusion_count",
+            }
+            stat_key = stat_key_map.get(event_type, f"{event_type}_count")
+            if stat_key in self.stats:
+                self.stats[stat_key] += 1
             print(f"📤 [Supabase 저장] {event_type}")
         except Exception as e:
             print(f"[Supabase 오류] {e}")
@@ -166,13 +191,26 @@ class SafeStoreDetector:
                             "confidence": conf,
                         })
                 
-                # 5. 폭행 감지 (Day 2에 추가)
-                # if self.violence:
-                #     violence_result = self.violence.detect(frame)
-                #     if violence_result["violence_detected"]:
-                #         ...
                 
-                # 6. 주기적 상태 출력 (10초마다)
+                # 5. 종합 이상행동 감지
+                if self.anomaly:
+                    anomaly_result = self.anomaly.detect(frame)
+                    
+                    if anomaly_result["violence"]:
+                        print(f"🚨 [폭행/싸움] 감지!")
+                        self._save_event("violence", {
+                            "duration": 2,
+                            "confidence": 0.85,
+                        })
+                    
+                    
+                    if anomaly_result["intrusion"]:
+                        print(f"🚨 [비영업 시간 침입] 감지!")
+                        self._save_event("intrusion", {
+                            "duration": 0,
+                            "confidence": 0.95,
+                        })
+               
                 if self.frame_count % 150 == 0:
                     self._print_status()
         
@@ -192,7 +230,8 @@ class SafeStoreDetector:
               f"쓰러짐={self.stats['fall_count']}, "
               f"체류={self.stats['loiter_count']}, "
               f"화재={self.stats['fire_count']}, "
-              f"폭행={self.stats['violence_count']}")
+              f"폭행={self.stats['violence_count']}, "
+              f"침입={self.stats['intrusion_count']}")
     
     def cleanup(self):
         """리소스 정리"""
@@ -212,6 +251,7 @@ class SafeStoreDetector:
         print(f"  - 체류: {self.stats['loiter_count']}회")
         print(f"  - 화재: {self.stats['fire_count']}회")
         print(f"  - 폭행: {self.stats['violence_count']}회")
+        print(f"  - 침입: {self.stats['intrusion_count']}회")
         print("=" * 60)
 
 

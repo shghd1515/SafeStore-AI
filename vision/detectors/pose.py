@@ -133,18 +133,6 @@ class PoseDetector:
         result["details"]["angle"] = angle
         result["details"]["center"] = (cx, cy) if cx else None
         
-        # 디버그용 진단
-        if bx is not None and len(bx.xyxy) > 0:
-            x1, y1, x2, y2 = bx.xyxy[0].cpu().numpy()
-            box_w = x2 - x1
-            box_h = y2 - y1
-            aspect = box_w / max(box_h, 1)
-            result["details"]["aspect"] = aspect
-            
-            if self.verbose and result["person_detected"]:
-                print(f"  [Pose 진단] 각도={angle:.1f}°, 종횡비={aspect:.2f}, "
-                      f"박스(W={int(box_w)}, H={int(box_h)}), 누움판정={person_down}")
-
         # 디버그용: 박스 종횡비 확인
         if bx is not None and len(bx.xyxy) > 0:
             x1, y1, x2, y2 = bx.xyxy[0].cpu().numpy()

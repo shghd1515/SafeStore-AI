@@ -31,14 +31,19 @@ STORE_LOCATION     = os.getenv("STORE_LOCATION", "무인매장1")
 
 # 이벤트 종류별 한글 라벨
 EVENT_LABELS = {
-    "fall":       "쓰러짐 감지",
-    "loitering":  "장시간 체류",
-    "fight":      "폭행/싸움",
-    "fire":       "화재 감지",
-    "intrusion":  "침입 감지",
-    "theft":      "절도 의심",
-    "vandalism":  "기물파손",
-    "drunk":      "주취 행동",
+    "fall":         "쓰러짐 감지",
+    "loitering":    "장시간 체류",
+    "fight":        "폭행/싸움",
+    "fire":         "화재 감지",
+    "intrusion":    "침입 감지",
+    "theft":        "절도 의심",
+    "vandalism":    "기물파손",
+    "drunk":        "주취 행동",
+    "violence":     "폭행/싸움",      # ← 추가
+    "running":      "빠른 이동",      # ← 추가
+    "crowding":     "군집 감지",      # ← 추가
+    "kneeling":     "무릎 꿇기",      # ← 추가
+    "counter_jump": "카운터 점프",    # ← 추가
 }
 
 # 이벤트별 쿨다운 (초) — 동일 이벤트 연속 알림 방지
