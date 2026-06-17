@@ -1,7 +1,7 @@
 """
-backend/06_chatbot.py
-Gemini API 기반 챗봇 엔드포인트
-04_fastapi_app.py 에 통합하여 사용
+backend/chatbot.py
+OpenAI API 기반 챗봇 엔드포인트
+main.py 에 통합하여 사용
 
 추가할 엔드포인트:
   POST /chat        → 챗봇 메시지 전송
@@ -16,20 +16,18 @@ from dotenv import load_dotenv
 from fastapi import APIRouter
 from pydantic import BaseModel
 from sqlalchemy import create_engine, text
-from google import genai
-from google.genai import types
+from openai import OpenAI
 
 load_dotenv()
 
-router = APIRouter(prefix="/chat", tags=["Gemini 챗봇"])
+router = APIRouter(prefix="/chat", tags=["OpenAI 챗봇"])
 
-# ── Gemini 설정 ───────────────────────────────────────────────────────────────
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-gemini_model   = None
-if GEMINI_API_KEY:
-    gemini_client = genai.Client(api_key=GEMINI_API_KEY)
-else:
-    gemini_client = None
+# ── OpenAI 설정 ───────────────────────────────────────────────────────────────
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL   = os.getenv("OPENAI_MODEL", "gpt-4o-mini")  # 기본: 빠르고 저렴
+openai_client  = None
+if OPENAI_API_KEY:
+    openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ── DB 연결 ───────────────────────────────────────────────────────────────────
 # 전역 엔진 (연결 풀 재사용)
@@ -112,6 +110,38 @@ def get_event_list() -> list:
         print(f"[DB 오류] {e}")
     return []
 
+def get_anomaly_events() -> list:
+    """이상행동 이벤트 조회 (화재, 쓰러짐, 폭행 등) - 한국 시간"""
+    sql = """SELECT event_type, 
+                    TO_CHAR(detected_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:MI:SS') as kst_time,
+                    duration_sec, 
+                    confidence
+             FROM anomaly_events
+             ORDER BY detected_at DESC
+             LIMIT 20"""
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(text(sql)).fetchall()
+        return [{"event_type": r[0], "detected_at": r[1],
+                 "duration": r[2], "confidence": r[3]} for r in rows]
+    except Exception as e:
+        print(f"[DB 오류] {e}")
+    return []
+
+
+def get_today_anomaly_summary() -> dict:
+    """오늘 이상행동 발생 요약"""
+    sql = """SELECT event_type, COUNT(*) as cnt
+             FROM anomaly_events
+             WHERE detected_at >= NOW() - INTERVAL '24 hours'
+             GROUP BY event_type"""
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(text(sql)).fetchall()
+        return {r[0]: r[1] for r in rows}
+    except Exception as e:
+        print(f"[DB 오류] {e}")
+    return {}
 
 def get_control_logs() -> list:
     sql = """SELECT logged_at, hour_of_day, current_temp, current_humi,
@@ -139,12 +169,15 @@ def pm25_grade(val) -> str:
     else:           return "매우나쁨"
 
 
-# ── Gemini 컨텍스트 빌드 ─────────────────────────────────────────────────────
+# ── OpenAI 컨텍스트 빌드 ─────────────────────────────────────────────────────
 def build_context() -> str:
-    s      = get_latest_sensor()
-    events = get_event_list()[:5]
-    hourly = get_hourly_data()
-    now    = datetime.now()
+    """시스템 프롬프트용 컨텍스트 빌드"""
+    s              = get_latest_sensor()
+    events         = get_event_list()[:5]
+    hourly         = get_hourly_data()
+    anomaly_events = get_anomaly_events()[:10]  # 최근 10개 이상행동
+    anomaly_today  = get_today_anomaly_summary()  # 오늘 요약
+    now            = datetime.now()
 
     pm25_val = s.get("pm25") or 0
     temp_val = s.get("temperature") or 0
@@ -154,6 +187,32 @@ def build_context() -> str:
         f"  {e['recorded_at']}: {e['event']} (온도 {e['temperature']}°C, PM2.5 {e['pm25']})"
         for e in events
     ) or "없음"
+
+    # 이상행동 이벤트 텍스트
+    EVENT_KOREAN = {
+        "fall": "쓰러짐",
+        "loitering": "장시간 체류",
+        "fire": "화재",
+        "smoke": "연기",
+        "fight": "폭행/싸움",
+        "violence": "폭행",
+        "intrusion": "침입",
+        "theft": "절도 의심",
+    }
+    
+    anomaly_text = "\n".join(
+        f"  {a['detected_at']}: {EVENT_KOREAN.get(a['event_type'], a['event_type'])} "
+        f"(신뢰도 {(a['confidence'] or 0)*100:.0f}%, 지속 {a['duration']}초)"
+        for a in anomaly_events
+    ) or "없음"
+    
+    # 오늘 이상행동 요약
+    today_summary_text = "오늘 발생 없음"
+    if anomaly_today:
+        today_summary_text = ", ".join(
+            f"{EVENT_KOREAN.get(k, k)} {v}회"
+            for k, v in anomaly_today.items()
+        )
 
     # 24시간 패턴 분석
     pattern_text = "데이터 없음"
@@ -228,7 +287,7 @@ def build_context() -> str:
     recommendation_text = "\n".join(f"  - {r}" for r in recommendations)
 
     return f"""
-당신은 스마트홈 IoT 환경 관리 AI 어시스턴트입니다.
+당신은 SafeStore AI - 무인매장 통합 안전·환경 관리 시스템의 AI 어시스턴트입니다.
 사용자의 실내 환경 데이터를 분석하고 친절하고 실용적으로 답변하세요.
 답변은 한국어로 2~4문장으로 간결하게 작성하세요.
 구체적인 수치를 언급하며 실질적인 행동을 추천하세요.
@@ -252,8 +311,21 @@ def build_context() -> str:
 ## AI 환경 개선 추천
 {recommendation_text}
 
-## 최근 이벤트
+## 최근 환경 이벤트
 {event_text}
+
+## 🚨 보안·안전 이상행동 이벤트 (CCTV AI 감지)
+### 오늘 발생 요약 (최근 24시간)
+{today_summary_text}
+
+### 최근 이상행동 이벤트 (최근 10개)
+{anomaly_text}
+
+### 감지 가능한 이상행동
+- 화재(fire): YOLO-Pose + YOLOv8 화재 감지 모델
+- 쓰러짐(fall): YOLO-Pose 자세 분석
+- 장시간 체류(loitering): 동일 위치 60초 이상
+- 폭행/싸움(violence): YOLO-Pose 기반 휴리스틱 (예정)
 
 ## AI 자동제어 시스템 정보
 - 매일 오후 2시 15분 환기 알람 자동 실행
@@ -268,6 +340,8 @@ def build_context() -> str:
 - AI 이상치 감지 결과가 있으면 언급하세요
 - 환기 필요 시 예상 효과를 수치로 제시하세요
 - 행동 추천은 명확하고 실용적으로 하세요
+- 화재/쓰러짐/폭행 등 이상행동 질문 시 위 "보안·안전 이상행동 이벤트" 데이터를 활용하세요
+- 시간, 종류, 빈도, 신뢰도를 구체적으로 언급하세요
 """.strip()
 
 
@@ -319,47 +393,56 @@ def chat(req: ChatRequest):
     if detected_event:
         record_event_db(detected_event)
 
-    # 대화 히스토리 구성
-    history_text = ""
+    if not openai_client:
+        return {
+            "answer": "OpenAI API 키가 설정되지 않았습니다. .env 파일을 확인해주세요.",
+            "detected_event": detected_event,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+
+    # OpenAI messages 형식 구성
+    # 1) system 메시지 (컨텍스트)
+    # 2) 이전 대화 히스토리
+    # 3) 현재 사용자 메시지
+    messages = [
+        {"role": "system", "content": build_context()}
+    ]
+    
+    # 이전 대화 히스토리 추가 (최근 6개만)
     if req.history:
-        history_text = "\n## 이전 대화\n"
         for h in req.history[-6:]:
-            role = "사용자" if h.get("role") == "user" else "AI"
-            history_text += f"{role}: {h.get('content','')}\n"
+            role = h.get("role", "user")
+            # OpenAI는 'user' / 'assistant' 사용
+            if role in ("user", "assistant"):
+                messages.append({
+                    "role": role,
+                    "content": h.get("content", "")
+                })
+    
+    # 현재 사용자 메시지
+    messages.append({"role": "user", "content": req.message})
 
-    prompt = f"""
-{build_context()}
-{history_text}
-
-## 사용자 질문
-{req.message}
-
-답변:""".strip()
-
-    if not gemini_client:
-        answer = "Gemini API 키가 설정되지 않았습니다. .env 파일을 확인해주세요."
-    else:
-        try:
-            response = gemini_client.models.generate_content(
-                model="models/gemini-2.5-flash",
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    temperature=0.4,
-                    max_output_tokens=1024,
-                )
-            )
-            answer = response.text.strip()
-        except Exception as e:
-            err = str(e)
-            print(f"[Gemini 오류] {err}")
-            if "429" in err or "RESOURCE_EXHAUSTED" in err or "quota" in err.lower():
-                answer = "현재 AI 서비스 이용량이 초과됐습니다. 잠시 후 다시 시도해주세요. (보통 1분 후 자동 복구됩니다)"
-            elif "404" in err or "not found" in err.lower():
-                answer = "AI 모델 연결에 문제가 발생했습니다. 서버 관리자에게 문의해주세요."
-            elif "API" in err or "key" in err.lower():
-                answer = "Gemini API 키를 확인해주세요. .env 파일의 GEMINI_API_KEY를 확인해주세요."
-            else:
-                answer = "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+    try:
+        response = openai_client.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=messages,
+            temperature=0.4,
+            max_tokens=1024,
+        )
+        answer = response.choices[0].message.content.strip()
+    except Exception as e:
+        err = str(e)
+        print(f"[OpenAI 오류] {err}")
+        if "rate_limit" in err.lower() or "429" in err:
+            answer = "현재 AI 서비스 이용량이 초과됐습니다. 잠시 후 다시 시도해주세요. (보통 1분 후 자동 복구됩니다)"
+        elif "404" in err or "not found" in err.lower() or "model" in err.lower():
+            answer = "AI 모델 연결에 문제가 발생했습니다. 서버 관리자에게 문의해주세요."
+        elif "api" in err.lower() or "key" in err.lower() or "auth" in err.lower():
+            answer = "OpenAI API 키를 확인해주세요. .env 파일의 OPENAI_API_KEY를 확인해주세요."
+        elif "billing" in err.lower() or "quota" in err.lower() or "credit" in err.lower():
+            answer = "OpenAI 크레딧이 부족합니다. 결제 또는 충전 후 다시 시도해주세요."
+        else:
+            answer = "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
 
     return {
         "answer":         answer,

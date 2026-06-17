@@ -117,14 +117,18 @@ class PoseDetector:
             k = kp.data[0].cpu().numpy()  # (17, 3)
             angle = self._trunk_angle(k)
             
-            # 쓰러짐 후보 (각도 작으면 누움)
-            if angle < self.angle_th and angle < 30:
-                person_down = True
-            
-            # 박스 중심
+            # 박스 중심 + 종횡비 (먼저 계산)
+            box_aspect = 0.0
             if bx is not None and len(bx.xyxy) > 0:
                 x1, y1, x2, y2 = bx.xyxy[0].cpu().numpy()
                 cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
+                box_w = x2 - x1
+                box_h = y2 - y1
+                box_aspect = box_w / max(box_h, 1)
+            
+            # 쓰러짐 판정: 각도 작음 + 종횡비 1.0 이상 (진짜 누움)
+            if angle < self.angle_th and angle < 30 and box_aspect > 1.0:
+                person_down = True
         
         result["details"]["angle"] = angle
         result["details"]["center"] = (cx, cy) if cx else None

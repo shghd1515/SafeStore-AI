@@ -25,7 +25,7 @@ xgboost
 lightgbm
 
 # ── AI 챗봇 (Gemini) ─────────────────────────
-google-genai>=1.0.0
+openai>=1.0.0
 
 # ── 스케줄러 & HTTP ──────────────────────────
 apscheduler

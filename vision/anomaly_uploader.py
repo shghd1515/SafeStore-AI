@@ -17,7 +17,7 @@ vision/anomaly_uploader.py
 import os
 import time
 import requests
-from datetime import datetime
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -79,7 +79,7 @@ def push_event(event_type: str,
         return False
 
     label = EVENT_LABELS.get(event_type, event_type)
-    detected_at = datetime.now().isoformat()
+    detected_at = datetime.now(timezone.utc).isoformat()
 
     # 1) Supabase REST API로 INSERT
     ok_db = _insert_supabase({
@@ -95,7 +95,7 @@ def push_event(event_type: str,
     # 2) 텔레그램 알림
     msg = (
         f"🚨 [{STORE_LOCATION}] {label}\n"
-        f"시각: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        f"시각: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} KST\n"
         f"신뢰도: {confidence*100:.1f}%\n"
         f"지속: {duration_sec}초"
     )
