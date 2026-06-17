@@ -69,7 +69,7 @@ class SafeStoreDetector:
             fall_hold_sec=10.0,      # 실전: 5초
             loiter_sec=60.0,         # 실전: 60초 (테스트로 1분)
             cooldown_sec=120.0,
-            verbose=False,
+            verbose=True,
         )
         
         # 3. 화재 감지

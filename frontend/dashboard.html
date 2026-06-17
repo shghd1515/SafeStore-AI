@@ -1984,10 +1984,16 @@ function renderEvents(events) {
 
   log.innerHTML = events.map(e => {
     const meta = EVENT_META[e.event_type] || { name: e.event_type, cls: '', icon: '●' };
-    const time = new Date(e.detected_at).toLocaleString('ko-KR', {
-      timeZone: 'Asia/Seoul',
-      month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
-    });
+    const time = (() => {
+      const d = new Date(e.detected_at);
+      // UTC 시간에 +9시간 = KST
+      const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+      const mm = String(kst.getUTCMonth() + 1).padStart(2, '0');
+      const dd = String(kst.getUTCDate()).padStart(2, '0');
+      const hh = String(kst.getUTCHours()).padStart(2, '0');
+      const min = String(kst.getUTCMinutes()).padStart(2, '0');
+      return `${mm}.${dd} ${hh}:${min}`;
+    })();
     const conf = e.confidence ? (e.confidence * 100).toFixed(0) + '%' : '--';
     const dur = e.duration_sec ? e.duration_sec + '초' : '';
     return `
